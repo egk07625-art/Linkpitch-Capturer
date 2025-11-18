@@ -103,10 +103,11 @@ supabase/migrations/20241030014800_create_users_table.sql
 
 **중요**:
 
-- 새 테이블 생성 시 반드시 Row Level Security (RLS) 활성화
-- 개발 중에는 RLS를 비활성화할 수 있으나, 프로덕션에서는 활성화 필수
+- **현재 상태**: RLS는 비활성화되어 있음 (출시 전 활성화 예정)
+- 새 테이블 생성 시 RLS 정책은 주석으로 작성해두고, 출시 전에 활성화
+- 프로덕션에서는 반드시 RLS 활성화 필수
 - RLS 정책은 세분화: select, insert, update, delete별로 각각 작성
-- `anon`과 `authenticated` 역할별로 별도 정책 작성
+- Clerk JWT의 `sub` claim을 `user_id`로 매칭하여 사용자별 데이터 접근 제어
 
 ### 현재 스키마
 
@@ -147,7 +148,22 @@ NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 NEXT_PUBLIC_STORAGE_BUCKET=uploads
+
+# n8n Webhook Integration
+# n8n 워크플로우의 Webhook URL
+# 예: http://localhost:5678/webhook/generate-step 또는 https://your-n8n-instance.com/webhook/generate-step
+N8N_WEBHOOK_URL=
+
+# OpenAI API Integration
+# OpenAI API 키 (n8n에서 사용하거나 직접 호출 시 사용)
+# 예: sk-...
+OPENAI_API_KEY=
 ```
+
+**주의사항:**
+- `.env` 파일은 Git에 커밋하지 마세요 (`.gitignore`에 포함됨)
+- 프로덕션 환경에서는 환경 변수를 안전하게 관리하세요
+- `N8N_WEBHOOK_URL`과 `OPENAI_API_KEY`는 개발 단계에서 필수는 아니지만, Step 생성 기능 구현 시 필요합니다
 
 ## Development Guidelines
 
