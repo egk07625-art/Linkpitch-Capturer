@@ -127,6 +127,13 @@
   - [x] `lib/server/prospects.ts` – `createProspect`, `listProspectsByUser`  
   - [x] `lib/server/sequences.ts` – `createSequence`, `updateCurrentStep`  
   - [x] `lib/server/steps.ts` – `createStep`, `updateStepStatus` 등
+  - [x] Supabase 스키마 마이그레이션 파일 생성 (`supabase/migrations/`)
+    - [x] `20251119101409_init_linkpitch_schema.sql` - 전체 테이블 스키마 정의
+    - [x] `20251119101708_create_storage_bucket.sql` - Storage 버킷 생성
+  - [x] 테스트 데이터 시딩 스크립트 구현 (`scripts/seed-test-data.ts`)
+    - [x] 모든 테이블에 대한 테스트 데이터 삽입
+    - [x] 외래키 관계를 고려한 삽입 순서 구현
+    - [x] 데이터 검증 및 외래키 관계 확인 로직
 
 - [ ] 생성 플로우 ↔ CRM 연결
   - [ ] 생성 폼 제출 시:

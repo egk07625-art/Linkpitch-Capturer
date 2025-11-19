@@ -1,0 +1,26 @@
+feat: Add Supabase schema migrations and test data seeding script
+
+- Add comprehensive database schema migration (20251119101409_init_linkpitch_schema.sql)
+  - Create all core tables: users, plans, prospects, sequences, step, step_drafts, reports, report_events, generation_logs, user_plans
+  - Add indexes for query optimization
+  - Add triggers for automatic updated_at column updates
+  - Add CHECK constraints for status fields and engagement levels
+  - Add comments for all tables and columns
+
+- Add storage bucket migration (20251119101708_create_storage_bucket.sql)
+  - Create app-assets bucket for file storage
+  - RLS policies commented out for later implementation
+
+- Add test data seeding script (scripts/seed-test-data.ts)
+  - Insert test data for all tables respecting foreign key relationships
+  - Add explicit is_replied and has_clicked_report fields for step table
+  - Add data verification and foreign key relationship checks
+  - Add npm script: npm run seed:test
+
+- Update package.json
+  - Add seed:test script for running test data insertion
+  - Ensure tsx and dotenv are available as dev dependencies
+
+- Fix step table seed data
+  - Explicitly set is_replied and has_clicked_report fields to false for all step records
+  - Follow NOT NULL constraint requirements for boolean fields
