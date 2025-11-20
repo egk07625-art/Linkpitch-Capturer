@@ -17,7 +17,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body: GenerationRequest = await request.json();
+    const _body: GenerationRequest = await request.json();
 
     // TODO: n8n Webhook 호출 로직 구현 (Week 3)
     // const n8nWebhookUrl = process.env.N8N_WEBHOOK_URL;

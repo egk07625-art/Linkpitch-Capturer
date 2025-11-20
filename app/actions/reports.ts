@@ -8,9 +8,7 @@
 
 'use server';
 
-import { createClerkSupabaseClient } from '@/lib/supabase/server';
 import type { ReportEvent, CreateReportEventInput } from '@/types/report';
-import { updateProspect } from './prospects';
 
 /**
  * 리포트 이벤트 생성 및 CRM 상태 업데이트
@@ -20,16 +18,16 @@ import { updateProspect } from './prospects';
  * - 'scroll_60' 이벤트 발생 시 prospect의 crm_status를 'hot'으로 업데이트
  */
 export async function createReportEvent(
-  input: CreateReportEventInput
+  _input: CreateReportEventInput
 ): Promise<ReportEvent> {
-  const supabase = await createClerkSupabaseClient();
+  // const supabase = await createClerkSupabaseClient();
   
   // TODO: report_events 테이블에 이벤트 기록
   // TODO: 이벤트 타입에 따라 prospect의 crm_status 업데이트
-  // if (input.event_type === 'dwell_10s') {
-  //   await updateProspect(input.prospect_id, { crm_status: 'warm' });
-  // } else if (input.event_type === 'scroll_60') {
-  //   await updateProspect(input.prospect_id, { crm_status: 'hot' });
+  // if (_input.event_type === 'dwell_10s') {
+  //   await updateProspect(_input.prospect_id, { crm_status: 'warm' });
+  // } else if (_input.event_type === 'scroll_60') {
+  //   await updateProspect(_input.prospect_id, { crm_status: 'hot' });
   // }
   
   throw new Error('Not implemented');

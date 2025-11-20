@@ -8,14 +8,13 @@
 
 'use server';
 
-import { createClerkSupabaseClient } from '@/lib/supabase/server';
 import type { Step, CreateStepInput, UpdateStepInput } from '@/types/step';
 
 /**
  * 특정 Prospect의 모든 Step 조회
  */
-export async function getStepsByProspectId(prospectId: string): Promise<Step[]> {
-  const supabase = await createClerkSupabaseClient();
+export async function getStepsByProspectId(_prospectId: string): Promise<Step[]> {
+  // const supabase = await createClerkSupabaseClient();
   // TODO: 구현 필요
   return [];
 }
@@ -23,8 +22,8 @@ export async function getStepsByProspectId(prospectId: string): Promise<Step[]> 
 /**
  * 새로운 Step 생성
  */
-export async function createStep(input: CreateStepInput): Promise<Step> {
-  const supabase = await createClerkSupabaseClient();
+export async function createStep(_input: CreateStepInput): Promise<Step> {
+  // const supabase = await createClerkSupabaseClient();
   // TODO: 구현 필요
   throw new Error('Not implemented');
 }
@@ -33,10 +32,10 @@ export async function createStep(input: CreateStepInput): Promise<Step> {
  * Step 업데이트 (발송 완료 처리 등)
  */
 export async function updateStep(
-  id: string,
-  input: UpdateStepInput
+  _id: string,
+  _input: UpdateStepInput
 ): Promise<Step> {
-  const supabase = await createClerkSupabaseClient();
+  // const supabase = await createClerkSupabaseClient();
   // TODO: 구현 필요
   throw new Error('Not implemented');
 }
