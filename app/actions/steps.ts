@@ -45,7 +45,7 @@ export async function updateStep(
  */
 export async function markStepAsSent(stepId: string): Promise<Step> {
   return updateStep(stepId, {
-    is_sent: true,
+    
     sent_at: new Date().toISOString(),
   });
 }

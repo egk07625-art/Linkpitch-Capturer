@@ -14,10 +14,10 @@ import type { VisionAnalysis } from '@/types/prospect';
  * URL 분석 Webhook 호출
  * PRD.md의 /webhook/analyze-url 엔드포인트 호출
  * 
- * @param url 분석할 URL
+ * @param _url 분석할 URL
  * @returns Vision AI 분석 결과 (brand_name, vision_data, screenshot_url)
  */
-export async function analyzeUrl(url: string): Promise<{
+export async function analyzeUrl(_url: string): Promise<{
   brand_name: string;
   vision_data: VisionAnalysis;
   screenshot_url: string;
@@ -32,7 +32,7 @@ export async function analyzeUrl(url: string): Promise<{
   // const response = await fetch(`${n8nWebhookUrl}/analyze-url`, {
   //   method: 'POST',
   //   headers: { 'Content-Type': 'application/json' },
-  //   body: JSON.stringify({ url }),
+  //   body: JSON.stringify({ url: _url }),
   // });
   // 
   // if (!response.ok) {
@@ -48,15 +48,15 @@ export async function analyzeUrl(url: string): Promise<{
  * 이메일 생성 Webhook 호출
  * PRD.md의 /webhook/generate-email 엔드포인트 호출
  * 
- * @param brandName 브랜드명
- * @param visionData Vision AI 분석 데이터
- * @param strategyKeywords 전략 키워드 배열
+ * @param _brandName 브랜드명
+ * @param _visionData Vision AI 분석 데이터
+ * @param _strategyKeywords 전략 키워드 배열
  * @returns 생성된 이메일 본문
  */
 export async function generateEmail(
-  brandName: string,
-  visionData: VisionAnalysis,
-  strategyKeywords: string[]
+  _brandName: string,
+  _visionData: VisionAnalysis,
+  _strategyKeywords: string[]
 ): Promise<{ email_body: string }> {
   const n8nWebhookUrl = process.env.N8N_WEBHOOK_URL;
   
@@ -69,9 +69,9 @@ export async function generateEmail(
   //   method: 'POST',
   //   headers: { 'Content-Type': 'application/json' },
   //   body: JSON.stringify({
-  //     brand_name: brandName,
-  //     vision_data: visionData,
-  //     strategy_keywords: strategyKeywords,
+  //     brand_name: _brandName,
+  //     vision_data: _visionData,
+  //     strategy_keywords: _strategyKeywords,
   //   }),
   // });
   // 

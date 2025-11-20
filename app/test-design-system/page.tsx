@@ -151,7 +151,7 @@ export default function TestDesignSystemPage() {
             <li>Styles 탭에서 CSS 변수 값 확인 (--bg-primary, --text-primary 등)</li>
             <li>Console에서 다음 명령어 실행:
               <code className="font-mono text-xs text-interactive block mt-1 ml-4">
-                getComputedStyle(document.documentElement).getPropertyValue("--bg-primary")
+                getComputedStyle(document.documentElement).getPropertyValue(&apos;--bg-primary&apos;)
               </code>
             </li>
           </ol>

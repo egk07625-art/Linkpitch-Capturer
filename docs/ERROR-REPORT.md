@@ -86,3 +86,66 @@ import type { Prospect } from '@/types/prospect';
 ### 수정 완료 날짜
 2025-01-XX
 
+
+---
+
+## 2025-01-XX - Vercel 배포 실패 (세 번째) - 컴파일 경고 해결
+
+### 에러 원인
+**빌드 경고: `@typescript-eslint/no-unused-vars` 경고 다수**
+
+#### 경고 목록
+- **`app/actions/generation.ts`**
+  - 라인 20: `url` 파라미터 미사용
+  - 라인 57-59: `brandName`, `visionData`, `strategyKeywords` 파라미터 미사용
+
+- **`app/actions/reports.ts`**
+  - 라인 21: `_input` 파라미터 미사용 (언더스코어 접두사 있음)
+
+- **`app/actions/steps.ts`**
+  - 라인 16: `_prospectId` 파라미터 미사용
+  - 라인 25: `_input` 파라미터 미사용
+  - 라인 35-36: `_id`, `_input` 파라미터 미사용
+
+- **`app/api/generate-step/route.ts`**
+  - 라인 20: `_body` 변수 미사용
+
+- **`app/test-design-system/page.tsx`**
+  - 라인 154: JSX 내부 작은따옴표 이스케이프 필요
+
+- **`app/actions/steps.ts`, `lib/server/steps.ts`**
+  - `is_sent` 속성이 `UpdateStepInput` 타입에 없음
+
+### 해결 방법
+
+#### 1. ESLint 설정 수정
+`eslint.config.mjs`에 언더스코어 접두사 변수 무시 규칙 추가:
+```javascript
+"@typescript-eslint/no-unused-vars": [
+  "warn",
+  {
+    argsIgnorePattern: "^_",
+    varsIgnorePattern: "^_",
+  },
+],
+```
+
+#### 2. 미사용 파라미터 언더스코어 접두사 추가
+- `app/actions/generation.ts`: `url` → `_url`, `brandName` → `_brandName` 등
+
+#### 3. JSX 이스케이프 수정
+- `app/test-design-system/page.tsx`: 작은따옴표를 HTML 엔티티로 변경 (`&apos;`)
+
+#### 4. 타입 에러 수정
+- `app/actions/steps.ts`, `lib/server/steps.ts`: `is_sent` 속성 제거 (타입에 없음)
+
+### 해결 상태
+- [x] ERROR-REPORT 파일에 새 에러 기록
+- [x] ESLint 설정 수정 (언더스코어 접두사 변수 무시 규칙 추가)
+- [x] 모든 미사용 파라미터 언더스코어 접두사 추가
+- [x] JSX 이스케이프 수정
+- [x] 타입 에러 수정 (`is_sent` 제거)
+- [x] 빌드 성공 확인 (경고 0개)
+
+### 수정 완료 날짜
+2025-01-XX

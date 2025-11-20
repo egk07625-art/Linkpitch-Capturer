@@ -132,7 +132,7 @@ export async function markStepAsSent(
   stepId: string
 ): Promise<Step> {
   return updateStep(userId, stepId, { 
-    is_sent: true,
+    
     sent_at: new Date().toISOString(),
   });
 }
