@@ -1,14 +1,9 @@
-feat: complete design system integration from DESIGN_PLAN.md
+Remove all Clerk custom design configurations
 
-- Integrate color system (zinc-950/900/800, indigo-500, rose-500) into Tailwind v4 @theme
-- Configure typography with Inter font priority and JetBrains Mono for monospace
-- Add animation timing variables (duration-snap: 150ms, duration-standard: 200ms, ease-sharp)
-- Fix Google Fonts @import CSS parsing error by using next/font instead
-- Configure ClerkProvider routing to prevent auto modal display
-- Update TODO.md to mark design system tasks as completed
+- Remove custom appearance props from ClerkProvider in app/layout.tsx
+- Remove custom localization (customKoKR) from ClerkProvider
+- Remove all appearance customizations from SignIn component
+- Remove all appearance customizations from SignUp component
+- Reset Clerk components to default styling
 
-Changes:
-- app/globals.css: Add custom colors and animation timing to @theme inline block
-- app/layout.tsx: Use next/font for Inter and JetBrains Mono fonts
-- app/sign-in: Configure Clerk SignIn appearance
-- middleware.ts: Ensure public routes are accessible without auto modal
+This initializes Clerk to use default styling and behavior, removing all custom design configurations for a clean slate.

@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
-import { koKR } from "@clerk/localizations";
 import { Geist, Geist_Mono, Inter, JetBrains_Mono } from "next/font/google";
-import type { LocalizationResource } from "@clerk/types";
 
 import Navbar from "@/components/Navbar";
 import "./globals.css";
@@ -40,42 +38,13 @@ export const metadata: Metadata = {
   description: "퍼포먼스 마케터를 위한 콜드메일·시퀀스 비서",
 };
 
-// Clerk 한국어 localization 커스터마이징
-const customKoKR: LocalizationResource = {
-  ...koKR,
-  signIn: {
-    ...koKR.signIn,
-    start: {
-      ...koKR.signIn?.start,
-      title: "LinkPitch에 로그인",
-      subtitle: "환영합니다! 계속하려면 로그인해 주세요",
-    },
-  },
-};
-
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider 
-      localization={customKoKR}
-      routing="path"
-      signInUrl="/sign-in"
-      signUpUrl="/sign-up"
-      appearance={{
-        variables: {
-          colorPrimary: "#6366f1",
-        },
-        elements: {
-          formButtonPrimary: "bg-indigo-600 hover:bg-indigo-700",
-          card: "shadow-lg",
-          headerTitle: "text-2xl font-bold",
-          headerSubtitle: "text-sm text-gray-600",
-        },
-      }}
-    >
+    <ClerkProvider>
       <html lang="ko" className="dark" suppressHydrationWarning>
         <head>
           <link
