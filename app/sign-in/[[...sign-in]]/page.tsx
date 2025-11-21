@@ -11,7 +11,18 @@ import { SignIn } from "@clerk/nextjs";
 export default function SignInPage() {
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-80px)]">
-      <SignIn />
+      <SignIn
+        routing="path"
+        path="/sign-in"
+        fallbackRedirectUrl="/"
+        signUpUrl="/sign-up"
+        appearance={{
+          elements: {
+            rootBox: "mx-auto",
+            card: "shadow-lg",
+          },
+        }}
+      />
     </div>
   );
 }

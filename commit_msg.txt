@@ -1,15 +1,10 @@
-feat: complete Week 1 TODO items - restore missing files and update documentation
+refactor: clean up project structure and migrate to pnpm
 
-- Restore missing Clerk → Supabase user synchronization files:
-  - Add hooks/use-sync-user.ts for automatic user sync hook
-  - Add components/providers/sync-user-provider.tsx for sync provider
-  - Add app/api/sync-user/route.ts for sync API endpoint
-  - Integrate SyncUserProvider into app/layout.tsx
+- Remove unused .cursor/rules files (consolidated into AGENTS.md)
+- Migrate from npm to pnpm (remove package-lock.json, add pnpm-lock.yaml)
+- Update package.json and tsconfig.json configurations
+- Improve code structure in actions, API routes, and server utilities
+- Update middleware and authentication flow
+- Clean up test files and improve type definitions
 
-- Implement missing updateStepStatus function in lib/server/steps.ts
-
-- Update docs/TODO.md to reflect actual implementation status:
-  - Clarify user synchronization sub-items
-  - Update middleware protection description
-
-This completes all Week 1 TODO items related to authentication and database setup.
+This commit focuses on project maintenance and code quality improvements.

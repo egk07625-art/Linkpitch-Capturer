@@ -25,8 +25,8 @@ export async function createSequence(
     .from("sequences")
     .insert({
       user_id: userId,
-      current_step: 1,
-      status: "active",
+      current_step: 0,
+      status: "draft", // 스키마 기본값과 일치
       ...input,
     })
     .select()
@@ -94,6 +94,11 @@ export async function updateSequence(
 ): Promise<Sequence> {
   const supabase = createClerkSupabaseClient();
 
+  // status 제약 조건 검증
+  if (input.status && !['draft', 'active', 'completed', 'paused'].includes(input.status)) {
+    throw new Error(`Invalid status: ${input.status}. Must be one of: draft, active, completed, paused`);
+  }
+
   const { data, error } = await supabase
     .from("sequences")
     .update({
@@ -122,4 +127,3 @@ export async function updateCurrentStep(
 ): Promise<Sequence> {
   return updateSequence(userId, sequenceId, { current_step: currentStep });
 }
-

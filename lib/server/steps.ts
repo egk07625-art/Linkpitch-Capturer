@@ -18,7 +18,7 @@ export async function createStep(
   const supabase = createClerkSupabaseClient();
 
   const { data, error } = await supabase
-    .from("steps")
+    .from("step")
     .insert({
       user_id: userId,
       status: "pending",
@@ -44,7 +44,7 @@ export async function listStepsBySequence(
   const supabase = createClerkSupabaseClient();
 
   const { data, error } = await supabase
-    .from("steps")
+    .from("step")
     .select("*")
     .eq("sequence_id", sequenceId)
     .eq("user_id", userId)
@@ -67,7 +67,7 @@ export async function getStepById(
   const supabase = createClerkSupabaseClient();
 
   const { data, error } = await supabase
-    .from("steps")
+    .from("step")
     .select("*")
     .eq("id", stepId)
     .eq("user_id", userId)
@@ -94,7 +94,7 @@ export async function updateStep(
   const supabase = createClerkSupabaseClient();
 
   const { data, error } = await supabase
-    .from("steps")
+    .from("step")
     .update({
       ...input,
       updated_at: new Date().toISOString(),

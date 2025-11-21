@@ -15,10 +15,24 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CheckCircle2, XCircle, Loader2, Database, RefreshCw, Plus, Trash2 } from "lucide-react";
+import {
+  CheckCircle2,
+  XCircle,
+  Loader2,
+  Database,
+  RefreshCw,
+  Plus,
+  Trash2,
+} from "lucide-react";
 
 interface TestResult {
   timestamp: string;
@@ -44,22 +58,33 @@ export default function TestSupabasePage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<TestResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  
+
   // 데이터 추가 관련 상태
   const [addLoading, setAddLoading] = useState(false);
   const [addResult, setAddResult] = useState<AddDataResult | null>(null);
   const [addError, setAddError] = useState<string | null>(null);
-  const [selectedTable, setSelectedTable] = useState<"users" | "prospects" | "sequences">("users");
-  
+  const [selectedTable, setSelectedTable] = useState<
+    "users" | "prospects" | "sequences"
+  >("users");
+
   // 폼 데이터
   const [formData, setFormData] = useState({
     users: { clerk_id: "", email: "", name: "" },
-    prospects: { user_id: "", name: "", contact_name: "", contact_email: "", url: "", memo: "" },
+    prospects: {
+      user_id: "",
+      name: "",
+      contact_name: "",
+      contact_email: "",
+      url: "",
+      memo: "",
+    },
     sequences: { user_id: "", prospect_id: "", name: "", custom_context: "" },
   });
-  
+
   // 추가된 데이터 목록
-  const [addedData, setAddedData] = useState<Array<{ table: string; data: any; timestamp: string }>>([]);
+  const [addedData, setAddedData] = useState<
+    Array<{ table: string; data: any; timestamp: string }>
+  >([]);
 
   const runTests = async () => {
     setLoading(true);
@@ -94,32 +119,44 @@ export default function TestSupabasePage() {
 
     try {
       console.group(`➕ ${selectedTable} 데이터 추가 시작`);
-      const currentFormData = formData[selectedTable];
-      
-      // 필수 필드 검증
+
+      // 필수 필드 검증 및 타입 안전성 확보
+      let validatedData:
+        | typeof formData.users
+        | typeof formData.prospects
+        | typeof formData.sequences;
+
       if (selectedTable === "users") {
-        if (!currentFormData.clerk_id?.trim() || !currentFormData.email?.trim()) {
+        const userData = formData.users;
+        if (!userData.clerk_id?.trim() || !userData.email?.trim()) {
           throw new Error("clerk_id와 email은 필수입니다.");
         }
+        validatedData = userData;
       } else if (selectedTable === "prospects") {
+        const prospectData = formData.prospects;
         if (
-          !currentFormData.user_id?.trim() ||
-          !currentFormData.name?.trim() ||
-          !currentFormData.contact_email?.trim() ||
-          !currentFormData.url?.trim()
+          !prospectData.user_id?.trim() ||
+          !prospectData.name?.trim() ||
+          !prospectData.contact_email?.trim() ||
+          !prospectData.url?.trim()
         ) {
           throw new Error("user_id, name, contact_email, url은 필수입니다.");
         }
+        validatedData = prospectData;
       } else if (selectedTable === "sequences") {
+        const sequenceData = formData.sequences;
         if (
-          !currentFormData.user_id?.trim() ||
-          !currentFormData.prospect_id?.trim() ||
-          !currentFormData.name?.trim()
+          !sequenceData.user_id?.trim() ||
+          !sequenceData.prospect_id?.trim() ||
+          !sequenceData.name?.trim()
         ) {
           throw new Error("user_id, prospect_id, name은 필수입니다.");
         }
+        validatedData = sequenceData;
+      } else {
+        throw new Error("지원하지 않는 테이블입니다.");
       }
-      
+
       const response = await fetch("/api/test-supabase/add", {
         method: "POST",
         headers: {
@@ -127,7 +164,7 @@ export default function TestSupabasePage() {
         },
         body: JSON.stringify({
           table: selectedTable,
-          data: currentFormData,
+          data: validatedData,
         }),
       });
 
@@ -140,7 +177,7 @@ export default function TestSupabasePage() {
       }
 
       setAddResult(data);
-      
+
       // 추가된 데이터를 목록에 추가
       setAddedData((prev) => [
         {
@@ -154,10 +191,22 @@ export default function TestSupabasePage() {
       // 폼 초기화
       const initialValues = {
         users: { clerk_id: "", email: "", name: "" },
-        prospects: { user_id: "", name: "", contact_name: "", contact_email: "", url: "", memo: "" },
-        sequences: { user_id: "", prospect_id: "", name: "", custom_context: "" },
+        prospects: {
+          user_id: "",
+          name: "",
+          contact_name: "",
+          contact_email: "",
+          url: "",
+          memo: "",
+        },
+        sequences: {
+          user_id: "",
+          prospect_id: "",
+          name: "",
+          custom_context: "",
+        },
       };
-      
+
       setFormData((prev) => ({
         ...prev,
         [selectedTable]: initialValues[selectedTable],
@@ -315,7 +364,10 @@ export default function TestSupabasePage() {
                     onChange={(e) =>
                       setFormData((prev) => ({
                         ...prev,
-                        prospects: { ...prev.prospects, user_id: e.target.value },
+                        prospects: {
+                          ...prev.prospects,
+                          user_id: e.target.value,
+                        },
                       }))
                     }
                     placeholder="UUID"
@@ -345,7 +397,10 @@ export default function TestSupabasePage() {
                     onChange={(e) =>
                       setFormData((prev) => ({
                         ...prev,
-                        prospects: { ...prev.prospects, contact_name: e.target.value },
+                        prospects: {
+                          ...prev.prospects,
+                          contact_name: e.target.value,
+                        },
                       }))
                     }
                     placeholder="홍길동"
@@ -360,7 +415,10 @@ export default function TestSupabasePage() {
                     onChange={(e) =>
                       setFormData((prev) => ({
                         ...prev,
-                        prospects: { ...prev.prospects, contact_email: e.target.value },
+                        prospects: {
+                          ...prev.prospects,
+                          contact_email: e.target.value,
+                        },
                       }))
                     }
                     placeholder="contact@example.com"
@@ -410,7 +468,10 @@ export default function TestSupabasePage() {
                     onChange={(e) =>
                       setFormData((prev) => ({
                         ...prev,
-                        sequences: { ...prev.sequences, user_id: e.target.value },
+                        sequences: {
+                          ...prev.sequences,
+                          user_id: e.target.value,
+                        },
                       }))
                     }
                     placeholder="UUID"
@@ -425,7 +486,10 @@ export default function TestSupabasePage() {
                     onChange={(e) =>
                       setFormData((prev) => ({
                         ...prev,
-                        sequences: { ...prev.sequences, prospect_id: e.target.value },
+                        sequences: {
+                          ...prev.sequences,
+                          prospect_id: e.target.value,
+                        },
                       }))
                     }
                     placeholder="UUID"
@@ -455,7 +519,10 @@ export default function TestSupabasePage() {
                     onChange={(e) =>
                       setFormData((prev) => ({
                         ...prev,
-                        sequences: { ...prev.sequences, custom_context: e.target.value },
+                        sequences: {
+                          ...prev.sequences,
+                          custom_context: e.target.value,
+                        },
                       }))
                     }
                     placeholder="마케터 강점 (나만의 무기)"
@@ -466,11 +533,7 @@ export default function TestSupabasePage() {
           </div>
 
           {/* 추가 버튼 */}
-          <Button
-            onClick={addData}
-            disabled={addLoading}
-            className="w-full"
-          >
+          <Button onClick={addData} disabled={addLoading} className="w-full">
             {addLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -519,7 +582,8 @@ export default function TestSupabasePage() {
           <CardHeader>
             <CardTitle>추가된 데이터 목록</CardTitle>
             <CardDescription>
-              이 페이지에서 추가한 데이터 목록입니다. (페이지 새로고침 시 초기화됩니다)
+              이 페이지에서 추가한 데이터 목록입니다. (페이지 새로고침 시
+              초기화됩니다)
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -574,7 +638,9 @@ export default function TestSupabasePage() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div>
                     <p className="text-sm text-muted-foreground">전체 테스트</p>
-                    <p className="text-2xl font-bold">{result.summary.total_tests}</p>
+                    <p className="text-2xl font-bold">
+                      {result.summary.total_tests}
+                    </p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">성공</p>
@@ -590,7 +656,9 @@ export default function TestSupabasePage() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">성공률</p>
-                    <p className="text-2xl font-bold">{result.summary.success_rate}</p>
+                    <p className="text-2xl font-bold">
+                      {result.summary.success_rate}
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -607,36 +675,38 @@ export default function TestSupabasePage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {Object.entries(result.tests).map(([testName, testResult]) => (
-                  <div
-                    key={testName}
-                    className="flex items-start gap-3 p-3 rounded-lg border"
-                  >
-                    {testResult.success ? (
-                      <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-                    ) : (
-                      <XCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium">{testName}</p>
-                      {testResult.count !== undefined && (
-                        <p className="text-sm text-muted-foreground">
-                          {testResult.count}개 항목 조회됨
-                        </p>
+                {Object.entries(result.tests).map(
+                  ([testName, testResult]: [string, any]) => (
+                    <div
+                      key={testName}
+                      className="flex items-start gap-3 p-3 rounded-lg border"
+                    >
+                      {testResult.success ? (
+                        <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+                      ) : (
+                        <XCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
                       )}
-                      {testResult.data && (
-                        <details className="mt-2">
-                          <summary className="text-sm text-muted-foreground cursor-pointer">
-                            데이터 보기
-                          </summary>
-                          <pre className="mt-2 p-2 bg-muted rounded text-xs overflow-auto">
-                            {JSON.stringify(testResult.data, null, 2)}
-                          </pre>
-                        </details>
-                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium">{testName}</p>
+                        {testResult.count !== undefined && (
+                          <p className="text-sm text-muted-foreground">
+                            {testResult.count}개 항목 조회됨
+                          </p>
+                        )}
+                        {testResult.data && (
+                          <details className="mt-2">
+                            <summary className="text-sm text-muted-foreground cursor-pointer">
+                              데이터 보기
+                            </summary>
+                            <pre className="mt-2 p-2 bg-muted rounded text-xs overflow-auto">
+                              {JSON.stringify(testResult.data, null, 2)}
+                            </pre>
+                          </details>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ),
+                )}
               </div>
             </CardContent>
           </Card>
@@ -650,9 +720,14 @@ export default function TestSupabasePage() {
               <CardContent>
                 <div className="space-y-2">
                   {result.errors.map((err, index) => (
-                    <div key={index} className="p-3 bg-destructive/10 rounded-lg">
+                    <div
+                      key={index}
+                      className="p-3 bg-destructive/10 rounded-lg"
+                    >
                       <p className="font-medium text-destructive">{err.test}</p>
-                      <p className="text-sm text-muted-foreground">{err.error}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {err.error}
+                      </p>
                     </div>
                   ))}
                 </div>
@@ -664,4 +739,3 @@ export default function TestSupabasePage() {
     </div>
   );
 }
-

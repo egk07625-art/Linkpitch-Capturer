@@ -31,7 +31,6 @@ export async function POST(request: NextRequest) {
     }
 
     // 테이블별 데이터 검증 및 삽입
-    let result;
     let insertedData;
 
     switch (table) {
@@ -207,4 +206,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
 

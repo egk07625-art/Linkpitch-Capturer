@@ -10,8 +10,11 @@
 !.yarn/releases
 !.yarn/versions
 
+# npm (not used - project uses pnpm)
+package-lock.json
+
 # pnpm
-pnpm-lock.yaml
+# pnpm-lock.yaml should be committed (removed from ignore)
 
 # testing
 /coverage

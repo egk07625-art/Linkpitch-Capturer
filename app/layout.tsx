@@ -39,6 +39,9 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Linkpitch - AI 수주 비서",
   description: "퍼포먼스 마케터를 위한 콜드메일·시퀀스 비서",
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 // Clerk 한국어 localization 커스터마이징
@@ -60,7 +63,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider localization={customKoKR}>
+    <ClerkProvider
+      localization={customKoKR}
+      appearance={{
+        baseTheme: "dark",
+        variables: {
+          colorPrimary: "#6366f1",
+        },
+      }}
+    >
       <html lang="ko" className="dark" suppressHydrationWarning>
         <head>
           <link

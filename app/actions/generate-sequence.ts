@@ -101,17 +101,32 @@ export async function generateSequenceAction(
     throw new Error(`Sequence 생성 실패: ${sequenceError?.message || 'Sequence를 생성할 수 없습니다.'}`);
   }
 
-  // 4. Steps 일괄 INSERT
-  const stepsToInsert = steps.map((s, index) => ({
-    user_id: userId,
-    sequence_id: sequence.id,
-    step_number: s.step_number || index + 1,
-    step_type: s.step_type,
-    email_subject: s.email_subject,
-    email_body: s.email_body,
-    status: 'pending' as const,
-    is_core_step: [1, 3, 6, 9].includes(s.step_number || index + 1),
-  }));
+  // 4. Steps 일괄 INSERT (제약 조건 검증 포함)
+  const stepsToInsert = steps.map((s, index) => {
+    // step_number 범위 검증 (1-9)
+    const stepNumber = s.step_number || index + 1;
+    if (stepNumber < 1 || stepNumber > 9) {
+      throw new Error(`Step 번호가 유효하지 않습니다: ${stepNumber} (1-9 범위여야 함)`);
+    }
+
+    return {
+      user_id: userId,
+      sequence_id: sequence.id,
+      step_number: stepNumber,
+      step_type: s.step_type,
+      email_subject: s.email_subject,
+      email_body: s.email_body,
+      status: 'pending' as const,
+      is_core_step: [1, 3, 6, 9].includes(stepNumber),
+    };
+  });
+
+  // step_number 중복 체크 (sequence_id, step_number UNIQUE 제약)
+  const stepNumbers = stepsToInsert.map(s => s.step_number);
+  const uniqueStepNumbers = new Set(stepNumbers);
+  if (stepNumbers.length !== uniqueStepNumbers.size) {
+    throw new Error(`Step 번호 중복이 발견되었습니다: ${stepNumbers.join(', ')}`);
+  }
 
   const { error: stepsError } = await supabase
     .from('step')
@@ -125,5 +140,3 @@ export async function generateSequenceAction(
 
   return sequence as Sequence;
 }
-
-
