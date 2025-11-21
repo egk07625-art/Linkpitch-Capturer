@@ -45,8 +45,6 @@ const insertedIds: {
   prospects: string[];
   sequences: string[];
   steps: string[];
-  stepDrafts: string[];
-  reports: string[];
   reportEvents: string[];
   generationLogs: string[];
   userPlans: string[];
@@ -56,8 +54,6 @@ const insertedIds: {
   prospects: [],
   sequences: [],
   steps: [],
-  stepDrafts: [],
-  reports: [],
   reportEvents: [],
   generationLogs: [],
   userPlans: [],
@@ -244,8 +240,8 @@ async function insertSequences() {
       user_id: insertedIds.users[0],
       prospect_id: insertedIds.prospects[0],
       name: '테크 스타트업 A 캠페인',
-      sequence_type: '4_step',
-      total_steps: 4,
+      sequence_type: '9_steps',
+      total_steps: 9,
       current_step: 0,
       status: 'draft',
     },
@@ -253,7 +249,7 @@ async function insertSequences() {
       user_id: insertedIds.users[0],
       prospect_id: insertedIds.prospects[1],
       name: '이커머스 브랜드 B 캠페인',
-      sequence_type: '9_step',
+      sequence_type: '9_steps',
       total_steps: 9,
       current_step: 2,
       status: 'active',
@@ -262,8 +258,8 @@ async function insertSequences() {
       user_id: insertedIds.users[1],
       prospect_id: insertedIds.prospects[2],
       name: '서비스 회사 C 캠페인',
-      sequence_type: '4_step',
-      total_steps: 4,
+      sequence_type: '9_steps',
+      total_steps: 9,
       current_step: 0,
       status: 'draft',
     },
@@ -308,53 +304,43 @@ async function insertSteps() {
       user_id: insertedIds.users[0],
       sequence_id: insertedIds.sequences[0],
       step_number: 1,
-      step_type: 'problem_definition',
+      step_type: 'Hook',
       email_subject: '안녕하세요, 테크 스타트업 A님',
       email_body: '귀하의 비즈니스에 대해 관심이 있습니다...',
       status: 'pending',
-      is_replied: false,
-      has_clicked_report: false,
-      report_engagement_level: 'none',
+      is_core_step: true,
     },
     {
       user_id: insertedIds.users[0],
       sequence_id: insertedIds.sequences[0],
       step_number: 2,
-      step_type: 'value_proposition',
-      email_subject: '우리 솔루션이 도움이 될 수 있습니다',
+      step_type: 'Problem',
+      email_subject: '요즘 테크 스타트업의 공통적인 고민',
       email_body: '저희 제품은 다음과 같은 이점을 제공합니다...',
-      status: 'scheduled',
-      recommended_send_at: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-      is_replied: false,
-      has_clicked_report: false,
-      report_engagement_level: 'none',
+      status: 'pending',
+      is_core_step: false,
     },
     {
       user_id: insertedIds.users[0],
       sequence_id: insertedIds.sequences[1],
       step_number: 1,
-      step_type: 'problem_definition',
+      step_type: 'Hook',
       email_subject: '이커머스 브랜드 B님께',
       email_body: '온라인 판매 성장에 관심이 있으시군요...',
       status: 'sent',
       sent_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-      is_replied: false,
-      has_clicked_report: false,
-      report_engagement_level: 'low',
+      is_core_step: true,
     },
     {
       user_id: insertedIds.users[0],
       sequence_id: insertedIds.sequences[1],
-      step_number: 2,
-      step_type: 'soft_cta',
+      step_number: 3,
+      step_type: 'Value',
       email_subject: '추가 정보를 공유드립니다',
       email_body: '이전 이메일에 이어서...',
       status: 'sent',
       sent_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-      is_replied: true,
-      replied_at: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
-      has_clicked_report: false,
-      report_engagement_level: 'medium',
+      is_core_step: true,
     },
   ];
 
@@ -383,162 +369,63 @@ async function insertSteps() {
 }
 
 /**
- * 6. Step_drafts 테이블에 테스트 데이터 삽입
- */
-async function insertStepDrafts() {
-  console.log('\n📊 [6/10] step_drafts 테이블에 테스트 데이터 삽입 중...');
-  
-  if (
-    insertedIds.users.length === 0 ||
-    insertedIds.sequences.length === 0 ||
-    insertedIds.prospects.length === 0
-  ) {
-    throw new Error('Users, Sequences, Prospects가 먼저 삽입되어야 합니다.');
-  }
-
-  const testStepDrafts = [
-    {
-      user_id: insertedIds.users[0],
-      sequence_id: insertedIds.sequences[0],
-      prospect_id: insertedIds.prospects[0],
-      step_number: 3,
-      step_type: 'hard_cta',
-      version_number: 1,
-      email_subject: '제안서를 보내드립니다',
-      email_body: '상세한 제안 내용입니다...',
-      insights_json: { key_insight: '고객의 주요 관심사' },
-      report_json: { analysis: '고객 분석 결과' },
-      is_selected: false,
-    },
-    {
-      user_id: insertedIds.users[0],
-      sequence_id: insertedIds.sequences[0],
-      prospect_id: insertedIds.prospects[0],
-      step_number: 3,
-      step_type: 'hard_cta',
-      version_number: 2,
-      email_subject: '제안서를 보내드립니다 (수정본)',
-      email_body: '수정된 제안 내용입니다...',
-      insights_json: { key_insight: '업데이트된 인사이트' },
-      report_json: { analysis: '업데이트된 분석' },
-      is_selected: true,
-      selected_at: new Date().toISOString(),
-    },
-  ];
-
-  try {
-    const { data, error } = await supabase
-      .from('step_drafts')
-      .insert(testStepDrafts)
-      .select('id, step_number, version_number, is_selected');
-
-    if (error) {
-      console.error('❌ Step_drafts 삽입 실패:', error.message);
-      console.error('   코드:', error.code);
-      throw error;
-    }
-
-    insertedIds.stepDrafts = data.map((d) => d.id);
-    console.log(`✅ Step_drafts 삽입 성공! (${data.length}개)`);
-    data.forEach((draft) => {
-      console.log(`   - Step ${draft.step_number} v${draft.version_number} (선택: ${draft.is_selected})`);
-    });
-    return data;
-  } catch (error) {
-    console.error('❌ Step_drafts 삽입 중 예외 발생:', error);
-    throw error;
-  }
-}
-
-/**
- * 7. Reports 테이블에 테스트 데이터 삽입
- */
-async function insertReports() {
-  console.log('\n📊 [7/10] reports 테이블에 테스트 데이터 삽입 중...');
-  
-  if (insertedIds.users.length === 0 || insertedIds.steps.length === 0) {
-    throw new Error('Users와 Steps가 먼저 삽입되어야 합니다.');
-  }
-
-  const testReports = [
-    {
-      user_id: insertedIds.users[0],
-      step_id: insertedIds.steps[2],
-      report_json: {
-        title: '이커머스 브랜드 B 분석 리포트',
-        sections: [
-          { type: 'summary', content: '고객 분석 요약' },
-          { type: 'insights', content: '주요 인사이트' },
-        ],
-      },
-    },
-    {
-      user_id: insertedIds.users[0],
-      step_id: insertedIds.steps[3],
-      report_json: {
-        title: '추가 정보 분석 리포트',
-        sections: [
-          { type: 'summary', content: '추가 분석 내용' },
-          { type: 'recommendations', content: '추천 사항' },
-        ],
-      },
-    },
-  ];
-
-  try {
-    const { data, error } = await supabase
-      .from('reports')
-      .insert(testReports)
-      .select('id, step_id');
-
-    if (error) {
-      console.error('❌ Reports 삽입 실패:', error.message);
-      console.error('   코드:', error.code);
-      throw error;
-    }
-
-    insertedIds.reports = data.map((r) => r.id);
-    console.log(`✅ Reports 삽입 성공! (${data.length}개)`);
-    data.forEach((report) => {
-      console.log(`   - Report for Step ${report.step_id.substring(0, 8)}...`);
-    });
-    return data;
-  } catch (error) {
-    console.error('❌ Reports 삽입 중 예외 발생:', error);
-    throw error;
-  }
-}
-
-/**
- * 8. Report_events 테이블에 테스트 데이터 삽입
+ * 6. Report_events 테이블에 테스트 데이터 삽입
  */
 async function insertReportEvents() {
-  console.log('\n📊 [8/10] report_events 테이블에 테스트 데이터 삽입 중...');
+  console.log('\n📊 [6/8] report_events 테이블에 테스트 데이터 삽입 중...');
   
   if (
     insertedIds.users.length === 0 ||
-    insertedIds.steps.length === 0 ||
-    insertedIds.reports.length === 0
+    insertedIds.prospects.length === 0
   ) {
-    throw new Error('Users, Steps, Reports가 먼저 삽입되어야 합니다.');
+    throw new Error('Users와 Prospects가 먼저 삽입되어야 합니다.');
   }
 
   const testReportEvents = [
     {
       user_id: insertedIds.users[0],
-      step_id: insertedIds.steps[2],
-      report_id: insertedIds.reports[0],
-      dwell_seconds: 45,
-      scroll_depth: 60,
-      interacted: true,
+      prospect_id: insertedIds.prospects[1],
+      event_type: 'view',
+      metadata: {
+        scroll_depth: 0,
+        dwell_seconds: 0,
+      },
     },
     {
       user_id: insertedIds.users[0],
-      step_id: insertedIds.steps[3],
-      report_id: insertedIds.reports[1],
-      dwell_seconds: 120,
-      scroll_depth: 85,
-      interacted: true,
+      prospect_id: insertedIds.prospects[1],
+      event_type: 'scroll_50',
+      metadata: {
+        scroll_depth: 0.5,
+        dwell_seconds: 15,
+      },
+    },
+    {
+      user_id: insertedIds.users[0],
+      prospect_id: insertedIds.prospects[1],
+      event_type: 'scroll_80',
+      metadata: {
+        scroll_depth: 0.8,
+        dwell_seconds: 35,
+      },
+    },
+    {
+      user_id: insertedIds.users[0],
+      prospect_id: insertedIds.prospects[0],
+      event_type: 'dwell_10s',
+      metadata: {
+        scroll_depth: 0.3,
+        dwell_seconds: 12,
+      },
+    },
+    {
+      user_id: insertedIds.users[0],
+      prospect_id: insertedIds.prospects[0],
+      event_type: 'dwell_30s',
+      metadata: {
+        scroll_depth: 0.9,
+        dwell_seconds: 45,
+      },
     },
   ];
 
@@ -546,7 +433,7 @@ async function insertReportEvents() {
     const { data, error } = await supabase
       .from('report_events')
       .insert(testReportEvents)
-      .select('id, report_id, dwell_seconds, scroll_depth');
+      .select('id, event_type, prospect_id');
 
     if (error) {
       console.error('❌ Report_events 삽입 실패:', error.message);
@@ -557,7 +444,7 @@ async function insertReportEvents() {
     insertedIds.reportEvents = data.map((e) => e.id);
     console.log(`✅ Report_events 삽입 성공! (${data.length}개)`);
     data.forEach((event) => {
-      console.log(`   - ${event.dwell_seconds}초, ${event.scroll_depth}% 스크롤`);
+      console.log(`   - ${event.event_type} (Prospect: ${event.prospect_id.substring(0, 8)}...)`);
     });
     return data;
   } catch (error) {
@@ -567,36 +454,36 @@ async function insertReportEvents() {
 }
 
 /**
- * 9. Generation_logs 테이블에 테스트 데이터 삽입
+ * 7. Generation_logs 테이블에 테스트 데이터 삽입
  */
 async function insertGenerationLogs() {
-  console.log('\n📊 [9/10] generation_logs 테이블에 테스트 데이터 삽입 중...');
+  console.log('\n📊 [7/8] generation_logs 테이블에 테스트 데이터 삽입 중...');
   
   if (
     insertedIds.users.length === 0 ||
-    insertedIds.prospects.length === 0 ||
-    insertedIds.steps.length === 0
+    insertedIds.prospects.length === 0
   ) {
-    throw new Error('Users, Prospects, Steps가 먼저 삽입되어야 합니다.');
+    throw new Error('Users와 Prospects가 먼저 삽입되어야 합니다.');
   }
 
   const testGenerationLogs = [
     {
       user_id: insertedIds.users[0],
       prospect_id: insertedIds.prospects[0],
-      step_id: insertedIds.steps[0],
-      step_type: 'problem_definition',
-      input_payload: {
-        prospect_name: '테크 스타트업 A',
-        industry: 'Technology',
-        company_size: '10-50',
-      },
-      output_insights: {
-        pain_points: ['자동화 필요', '비용 절감'],
-        opportunities: ['효율성 향상', '고객 만족도 증가'],
-      },
-      output_email_subject: '안녕하세요, 테크 스타트업 A님',
-      output_email_body: '귀하의 비즈니스에 대해 관심이 있습니다...',
+      step_number: 1,
+      step_type: 'Hook',
+      model_name: 'gemini-3.0-pro',
+      input_tokens: 500,
+      output_tokens: 300,
+    },
+    {
+      user_id: insertedIds.users[0],
+      prospect_id: insertedIds.prospects[1],
+      step_number: 3,
+      step_type: 'Value',
+      model_name: 'gemini-3.0-pro',
+      input_tokens: 600,
+      output_tokens: 350,
     },
   ];
 
@@ -604,7 +491,7 @@ async function insertGenerationLogs() {
     const { data, error } = await supabase
       .from('generation_logs')
       .insert(testGenerationLogs)
-      .select('id, step_type, output_email_subject');
+      .select('id, step_type, step_number, model_name');
 
     if (error) {
       console.error('❌ Generation_logs 삽입 실패:', error.message);
@@ -615,7 +502,7 @@ async function insertGenerationLogs() {
     insertedIds.generationLogs = data.map((g) => g.id);
     console.log(`✅ Generation_logs 삽입 성공! (${data.length}개)`);
     data.forEach((log) => {
-      console.log(`   - ${log.step_type}: ${log.output_email_subject}`);
+      console.log(`   - Step ${log.step_number} (${log.step_type}) - ${log.model_name}`);
     });
     return data;
   } catch (error) {
@@ -625,10 +512,10 @@ async function insertGenerationLogs() {
 }
 
 /**
- * 10. User_plans 테이블에 테스트 데이터 삽입
+ * 8. User_plans 테이블에 테스트 데이터 삽입
  */
 async function insertUserPlans() {
-  console.log('\n📊 [10/10] user_plans 테이블에 테스트 데이터 삽입 중...');
+  console.log('\n📊 [8/8] user_plans 테이블에 테스트 데이터 삽입 중...');
   
   if (insertedIds.users.length === 0 || insertedIds.plans.length === 0) {
     throw new Error('Users와 Plans가 먼저 삽입되어야 합니다.');
@@ -693,8 +580,6 @@ async function verifyInsertedData() {
     { name: 'prospects', count: insertedIds.prospects.length },
     { name: 'sequences', count: insertedIds.sequences.length },
     { name: 'step', count: insertedIds.steps.length },
-    { name: 'step_drafts', count: insertedIds.stepDrafts.length },
-    { name: 'reports', count: insertedIds.reports.length },
     { name: 'report_events', count: insertedIds.reportEvents.length },
     { name: 'generation_logs', count: insertedIds.generationLogs.length },
     { name: 'user_plans', count: insertedIds.userPlans.length },
@@ -766,8 +651,6 @@ async function main() {
     await insertProspects();
     await insertSequences();
     await insertSteps();
-    await insertStepDrafts();
-    await insertReports();
     await insertReportEvents();
     await insertGenerationLogs();
     await insertUserPlans();
@@ -784,8 +667,6 @@ async function main() {
     console.log(`✅ Prospects: ${insertedIds.prospects.length}개`);
     console.log(`✅ Sequences: ${insertedIds.sequences.length}개`);
     console.log(`✅ Steps: ${insertedIds.steps.length}개`);
-    console.log(`✅ Step_drafts: ${insertedIds.stepDrafts.length}개`);
-    console.log(`✅ Reports: ${insertedIds.reports.length}개`);
     console.log(`✅ Report_events: ${insertedIds.reportEvents.length}개`);
     console.log(`✅ Generation_logs: ${insertedIds.generationLogs.length}개`);
     console.log(`✅ User_plans: ${insertedIds.userPlans.length}개`);

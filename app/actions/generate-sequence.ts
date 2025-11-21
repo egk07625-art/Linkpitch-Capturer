@@ -110,9 +110,6 @@ export async function generateSequenceAction(
     email_subject: s.email_subject,
     email_body: s.email_body,
     status: 'pending' as const,
-    is_replied: false,
-    has_clicked_report: false,
-    report_engagement_level: 'none' as const,
     is_core_step: [1, 3, 6, 9].includes(s.step_number || index + 1),
   }));
 

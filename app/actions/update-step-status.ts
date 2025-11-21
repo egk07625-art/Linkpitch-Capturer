@@ -30,6 +30,11 @@ export async function updateStepStatusAction(
     throw new Error('Unauthorized: 사용자 인증이 필요합니다.');
   }
 
+  // StepStatus 타입 검증 ('pending' | 'sent'만 허용)
+  if (status !== 'pending' && status !== 'sent') {
+    throw new Error(`Invalid status: ${status}. Only 'pending' or 'sent' are allowed.`);
+  }
+
   const supabase = await createClerkSupabaseClient();
 
   // Step이 현재 사용자의 것인지 확인
@@ -69,4 +74,5 @@ export async function updateStepStatusAction(
     throw new Error(`Step 상태 업데이트 실패: ${updateError.message}`);
   }
 }
+
 

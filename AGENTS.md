@@ -122,7 +122,7 @@ supabase/migrations/20241030014800_create_users_table.sql
 
 #### Storage 버킷
 
-- `uploads`: 사용자 파일 저장소
+- `app-assets`: 사용자 파일 저장소
   - 경로 구조: `{clerk_user_id}/{filename}`
   - RLS 정책:
     - INSERT: 인증된 사용자만 자신의 폴더에 업로드 가능
@@ -130,6 +130,7 @@ supabase/migrations/20241030014800_create_users_table.sql
     - DELETE: 인증된 사용자만 자신의 파일 삭제 가능
     - UPDATE: 인증된 사용자만 자신의 파일 업데이트 가능
   - 정책은 `auth.jwt()->>'sub'` (Clerk user ID)로 사용자 확인
+  - 현재 RLS 정책은 비활성화 상태 (출시 전 활성화 예정)
 
 ## Environment Variables
 
@@ -147,7 +148,7 @@ NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL=/
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
-NEXT_PUBLIC_STORAGE_BUCKET=uploads
+NEXT_PUBLIC_STORAGE_BUCKET=app-assets
 
 # n8n Webhook Integration
 # n8n 워크플로우의 Webhook URL

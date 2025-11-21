@@ -114,13 +114,13 @@ export async function updateStep(
 /**
  * Step 상태 업데이트
  */
-// export async function updateStepStatus(
-//   userId: string,
-//   stepId: string,
-// //   status: Step["status"]
-// // ): Promise<Step> {
-// //   return updateStep(userId, stepId, { status });
-// // }
+export async function updateStepStatus(
+  userId: string,
+  stepId: string,
+  status: Step["status"]
+): Promise<Step> {
+  return updateStep(userId, stepId, { status });
+}
 
 
 /**

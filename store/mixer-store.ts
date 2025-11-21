@@ -37,3 +37,4 @@ export const useMixerStore = create<MixerState>((set) => ({
   setIsDragging: (value: boolean) => set({ isDragging: value }),
 }));
 
+

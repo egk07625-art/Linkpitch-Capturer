@@ -1,9 +1,15 @@
-Remove all Clerk custom design configurations
+feat: complete Week 1 TODO items - restore missing files and update documentation
 
-- Remove custom appearance props from ClerkProvider in app/layout.tsx
-- Remove custom localization (customKoKR) from ClerkProvider
-- Remove all appearance customizations from SignIn component
-- Remove all appearance customizations from SignUp component
-- Reset Clerk components to default styling
+- Restore missing Clerk → Supabase user synchronization files:
+  - Add hooks/use-sync-user.ts for automatic user sync hook
+  - Add components/providers/sync-user-provider.tsx for sync provider
+  - Add app/api/sync-user/route.ts for sync API endpoint
+  - Integrate SyncUserProvider into app/layout.tsx
 
-This initializes Clerk to use default styling and behavior, removing all custom design configurations for a clean slate.
+- Implement missing updateStepStatus function in lib/server/steps.ts
+
+- Update docs/TODO.md to reflect actual implementation status:
+  - Clarify user synchronization sub-items
+  - Update middleware protection description
+
+This completes all Week 1 TODO items related to authentication and database setup.

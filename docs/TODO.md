@@ -29,9 +29,12 @@
 - [x] Clerk 기본 연동
   - [x] `@clerk/nextjs` 설치 및 `.env`에 키 세팅
   - [x] `app/layout.tsx`에 `<ClerkProvider>` 래핑
-  - [x] `components/providers/sync-user-provider.tsx` 구현 (Clerk → Supabase 사용자 동기화)
-  - [x] `hooks/use-sync-user.ts` 구현 (사용자 동기화 훅)
-  - [x] `middleware.ts`에서 `/app/**`, `/api/**` 보호 설정 완료
+  - [x] Clerk → Supabase 사용자 동기화 구현
+    - [x] `components/providers/sync-user-provider.tsx` 구현
+    - [x] `hooks/use-sync-user.ts` 구현 (사용자 동기화 훅)
+    - [x] `app/api/sync-user/route.ts` 구현 (동기화 API 라우트)
+    - [x] `app/layout.tsx`에 `<SyncUserProvider>` 래핑
+  - [x] `middleware.ts`에서 보호된 라우트 설정 완료 (공개 라우트 외 모든 경로 보호)
 
 - [x] Supabase 클라이언트 기본 셋업
   - [x] `lib/supabase/` 폴더 구조 설정

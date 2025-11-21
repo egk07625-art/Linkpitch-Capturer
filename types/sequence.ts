@@ -14,7 +14,7 @@ export type SequenceType = "9_steps";
 /**
  * 시퀀스 상태 타입
  */
-export type SequenceStatus = "draft" | "active" | "completed" | "paused" | "cancelled";
+export type SequenceStatus = "draft" | "active" | "completed" | "paused";
 
 /**
  * Sequence 타입

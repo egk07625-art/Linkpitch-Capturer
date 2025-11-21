@@ -14,7 +14,7 @@ export type StepType = 'Hook' | 'Problem' | 'Value' | 'Social Proof' | 'Urgency'
 /**
  * Step 상태 타입
  */
-export type StepStatus = 'pending' | 'scheduled' | 'sent' | 'failed' | 'cancelled';
+export type StepStatus = 'pending' | 'sent';
 
 /**
  * Step 타입
@@ -35,24 +35,10 @@ export interface Step {
   email_subject: string;
   /** 이메일 본문 */
   email_body: string;
-  /** 상태 (pending, scheduled, sent, failed, cancelled) */
+  /** 상태 (pending/sent) */
   status: StepStatus;
-  /** 권장 발송 시간 */
-  recommended_send_at?: string;
   /** 실제 발송 시간 */
   sent_at?: string;
-  /** 답장 여부 */
-  is_replied: boolean;
-  /** 답장 시간 */
-  replied_at?: string;
-  /** 리포트 클릭 여부 */
-  has_clicked_report: boolean;
-  /** 리포트 참여도 레벨 */
-  report_engagement_level: 'none' | 'low' | 'medium' | 'high';
-  /** 마지막 리포트 조회 시간(초) */
-  last_report_view_seconds?: number;
-  /** 마지막 리포트 스크롤 깊이(%) */
-  last_report_scroll_depth?: number;
   /** 핵심 스텝 여부 (1, 3, 6, 9번 강조용) */
   is_core_step: boolean;
   /** 생성 일시 */
@@ -71,7 +57,6 @@ export interface CreateStepInput {
   email_subject: string;
   email_body: string;
   is_core_step?: boolean;
-  recommended_send_at?: string;
 }
 
 /**
@@ -82,12 +67,5 @@ export interface UpdateStepInput {
   email_subject?: string;
   email_body?: string;
   status?: StepStatus;
-  recommended_send_at?: string;
   sent_at?: string;
-  is_replied?: boolean;
-  replied_at?: string;
-  has_clicked_report?: boolean;
-  report_engagement_level?: 'none' | 'low' | 'medium' | 'high';
-  last_report_view_seconds?: number;
-  last_report_scroll_depth?: number;
 }

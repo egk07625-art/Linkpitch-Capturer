@@ -26,6 +26,13 @@ function extractDomain(url: string): string {
 }
 
 /**
+ * 도메인 기반 기본 contact_email 생성
+ */
+function generateDefaultContactEmail(domain: string): string {
+  return `contact@${domain}`;
+}
+
+/**
  * Vision 분석 및 Prospect 생성
  * 
  * @param url 분석할 URL
@@ -68,12 +75,17 @@ export async function analyzeUrlAction(url: string): Promise<Prospect> {
   // 2. Supabase 클라이언트 생성
   const supabase = await createClerkSupabaseClient();
 
-  // 3. Prospect 생성
+  // 3. 도메인 추출 및 기본 contact_email 생성
+  const domain = extractDomain(url);
+  const defaultContactEmail = generateDefaultContactEmail(domain);
+
+  // 4. Prospect 생성
   const { data: prospect, error } = await supabase
     .from('prospects')
     .insert({
       user_id: userId,
-      name: extractDomain(url),
+      name: domain,
+      contact_email: defaultContactEmail,
       url,
       vision_data: visionData,
       crm_status: 'cold',
@@ -93,4 +105,5 @@ export async function analyzeUrlAction(url: string): Promise<Prospect> {
 
   return prospect as Prospect;
 }
+
 

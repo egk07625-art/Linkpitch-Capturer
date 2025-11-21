@@ -56,40 +56,28 @@ export async function logReportEventAction(
   }
 
   // 1. report_events 테이블에 이벤트 INSERT
-  // 주의: 실제 DB 스키마는 step_id와 report_id를 요구하지만,
-  // PRD 기준으로 prospect_id를 직접 사용합니다.
-  // 실제 구현 시에는 step_id와 report_id를 찾아서 사용해야 할 수 있습니다.
-  
-  // 임시로 step_id를 찾기 위해 sequences를 통해 조회
-  const { data: sequence } = await supabase
-    .from('sequences')
-    .select('id')
-    .eq('prospect_id', prospectId)
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .single();
-
-  // report_events 테이블에 이벤트 기록
-  // 실제 DB 스키마에 맞춰 step_id와 report_id가 필요하지만,
-  // PRD 기준으로는 prospect_id만 사용하므로 임시로 처리
-  const eventData: any = {
+  const eventData = {
     user_id: userId,
-    step_id: sequence?.id || null, // 임시 처리
-    report_id: null, // 리포트 ID는 나중에 추가 가능
-    dwell_seconds: metadata?.dwell_seconds,
-    scroll_depth: metadata?.scroll_depth ? Math.round(metadata.scroll_depth * 100) : null,
-    interacted: eventType !== 'view', // view 외의 이벤트는 상호작용으로 간주
+    prospect_id: prospectId,
+    event_type: eventType,
+    metadata: metadata || {},
   };
 
-  await supabase.from('report_events').insert(eventData);
+  const { error: insertError } = await supabase
+    .from('report_events')
+    .insert(eventData);
+
+  if (insertError) {
+    console.error('Report event 삽입 실패:', insertError);
+    return;
+  }
 
   // 2. CRM 상태 승격 체크
   const { data: events } = await supabase
     .from('report_events')
-    .select('dwell_seconds, scroll_depth')
+    .select('metadata')
     .eq('user_id', userId)
-    .eq('step_id', sequence?.id || '');
+    .eq('prospect_id', prospectId);
 
   const hasEvent = (condition: (e: any) => boolean) => 
     events?.some(condition) || false;
@@ -98,15 +86,27 @@ export async function logReportEventAction(
 
   // Hot: (80% 스크롤) AND (30초 체류)
   if (
-    hasEvent((e) => e.scroll_depth >= 80) &&
-    hasEvent((e) => (e.dwell_seconds || 0) >= 30)
+    hasEvent((e) => {
+      const meta = e.metadata as ReportEventMetadata;
+      return (meta?.scroll_depth || 0) >= 0.8;
+    }) &&
+    hasEvent((e) => {
+      const meta = e.metadata as ReportEventMetadata;
+      return (meta?.dwell_seconds || 0) >= 30;
+    })
   ) {
     newStatus = 'hot';
   }
   // Warm: (50% 스크롤) AND (10초 체류)
   else if (
-    hasEvent((e) => e.scroll_depth >= 50) &&
-    hasEvent((e) => (e.dwell_seconds || 0) >= 10)
+    hasEvent((e) => {
+      const meta = e.metadata as ReportEventMetadata;
+      return (meta?.scroll_depth || 0) >= 0.5;
+    }) &&
+    hasEvent((e) => {
+      const meta = e.metadata as ReportEventMetadata;
+      return (meta?.dwell_seconds || 0) >= 10;
+    })
   ) {
     newStatus = 'warm';
   }
@@ -142,4 +142,5 @@ export async function logReportEventAction(
     .eq('id', prospectId)
     .eq('user_id', userId);
 }
+
 
