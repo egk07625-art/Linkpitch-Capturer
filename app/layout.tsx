@@ -6,6 +6,7 @@ import { Geist, Geist_Mono, Inter, JetBrains_Mono } from "next/font/google";
 
 import Navbar from "@/components/Navbar";
 import { SyncUserProvider } from "@/components/providers/sync-user-provider";
+import { Toaster } from "sonner";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -89,6 +90,7 @@ export default function RootLayout({
           <SyncUserProvider>
             <Navbar />
             {children}
+            <Toaster position="top-center" richColors />
           </SyncUserProvider>
         </body>
       </html>

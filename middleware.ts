@@ -7,6 +7,7 @@ const isPublicRoute = createRouteMatcher([
   "/sign-in(.*)",            // 로그인 페이지
   "/sign-up(.*)",            // 회원가입 페이지
   "/r(.*)",                  // 리포트 뷰 (수신자가 인증 없이 조회 가능)
+  "/prospects/new",          // Vision Analysis 페이지 (공개)
   "/api/webhooks(.*)",       // 외부 웹훅 (n8n 등)
 ]);
 

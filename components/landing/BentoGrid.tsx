@@ -48,7 +48,7 @@ export function BentoGrid() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: index * 0.2 }}
-            className={`group relative overflow-hidden rounded-3xl bg-zinc-900/50 border border-white/10 p-8 hover:bg-zinc-900/80 transition-all duration-300 ${step.colSpan}`}
+            className={`group relative overflow-hidden rounded-3xl bg-zinc-900/50 border border-white/10 p-8 hover:bg-zinc-900 hover:scale-105 hover:border-indigo-500/50 transition-all duration-300 ${step.colSpan}`}
           >
             <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             

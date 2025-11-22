@@ -1,168 +1,164 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, Sparkles } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { AnalysisTerminal } from "@/components/mixer/AnalysisTerminal";
-import { analyzeUrl } from "@/app/actions/analyze-url";
+import { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowRight, Gift } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { AnalysisTerminal } from '@/components/mixer/AnalysisTerminal';
+import { analyzeUrl } from '@/app/actions/analyze-url';
+import { createClerkSupabaseClient } from '@/lib/supabase/server';
+import { toast } from 'sonner';
+import { useAuth } from '@clerk/nextjs';
 
 export default function VisionAnalysisPage() {
-  const [url, setUrl] = useState("");
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [showTerminal, setShowTerminal] = useState(false);
+  const [url, setUrl] = useState('');
+  const [status, setStatus] = useState<'idle' | 'analyzing' | 'complete'>('idle');
+  const [credits, setCredits] = useState<number | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+  const { userId } = useAuth();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!url) return;
-
-    setIsAnalyzing(true);
-    setShowTerminal(true);
-
-    const formData = new FormData();
-    formData.append("url", url);
-
-    try {
-      const result = await analyzeUrl(formData);
+  // Fetch user credits on mount
+  useEffect(() => {
+    const fetchCredits = async () => {
+      if (!userId) return;
       
-      if (result.success && result.prospectId) {
-        // Wait for terminal animation to finish (handled by onComplete)
-        // We store the ID to redirect later or redirect here if terminal is done?
-        // The terminal takes about 5 * 0.8s + 0.5s = 4.5s
-        // The server action takes 3s.
-        // So the server action will finish before the terminal.
-        // We can just wait for the terminal onComplete callback to redirect.
+      try {
+        const response = await fetch('/api/user/credits');
+        const data = await response.json();
+        if (data.success) {
+          setCredits(data.credits);
+        }
+      } catch (error) {
+        console.error('Failed to fetch credits:', error);
+      }
+    };
+
+    fetchCredits();
+    inputRef.current?.focus();
+  }, [userId]);
+
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!url.trim()) return;
+
+    setStatus('analyzing');
+    
+    try {
+      const result = await analyzeUrl(url);
+      
+      // Handle NO_CREDITS error
+      if (!result.success && result.error === 'NO_CREDITS') {
+        toast.error(result.message || '무료 횟수가 모두 소진되었습니다. 더 많은 분석을 위해 플랜을 업그레이드하세요.');
+        setStatus('idle');
+        return;
+      }
+
+      // Handle other errors
+      if (!result.success) {
+        toast.error(result.message || '분석 중 오류가 발생했습니다.');
+        setStatus('idle');
+        return;
+      }
+
+      // Success case
+      if (result.success && result.redirectUrl) {
+        // Update credits display
+        if (result.remainingCredits !== undefined) {
+          setCredits(result.remainingCredits);
+        }
         
-        // We'll use a ref or state to hold the ID if we needed to, 
-        // but here we can just pass the ID to the onComplete handler or use a closure.
-        // Actually, onComplete is called by the Terminal.
-        // We need to pass the prospectId to the onComplete handler.
-        
-        // Let's store it in a ref or just use the closure if we define onComplete here.
-        // But onComplete is defined in the render.
-        
-        // Better approach:
-        // 1. Start analysis.
-        // 2. When analysis is done, set a flag "analysisReady" with the ID.
-        // 3. When terminal is done, check "analysisReady".
-        //    If ready, redirect. If not, wait (maybe show a "Finalizing..." log).
-        
-        // For this MVP, since the mock is 3s and terminal is ~4.5s, 
-        // we can just redirect in the terminal's onComplete.
-        // But we need the ID.
-        
-        // Let's just use a simple approach:
-        // The onComplete of the terminal will trigger the redirect.
-        // We need to pass the ID to it.
-        
-        // We can use a state for prospectId.
-        setProspectId(result.prospectId);
+        // Store the redirect URL to use it later
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.setItem('redirectUrl', result.redirectUrl);
+        }
       }
     } catch (error) {
-      console.error("Analysis failed", error);
-      setIsAnalyzing(false);
-      setShowTerminal(false);
+      console.error('Analysis failed', error);
+      toast.error('분석 중 오류가 발생했습니다.');
+      setStatus('idle');
     }
   };
-
-  const [prospectId, setProspectId] = useState<string | null>(null);
 
   const handleTerminalComplete = () => {
-    if (prospectId) {
-      router.push(`/prospects/${prospectId}/mix`);
-    } else {
-      // If terminal finishes but analysis isn't done (unlikely with current timings),
-      // we should probably wait or show an error.
-      // For now, let's assume happy path.
-      console.log("Terminal finished, waiting for prospectId...");
-      // In a real app we'd handle this better.
+    if (typeof window !== 'undefined') {
+      const redirectUrl = window.sessionStorage.getItem('redirectUrl');
+      if (redirectUrl) {
+        router.push(redirectUrl);
+      } else {
+        console.log('Waiting for server response...');
+      }
     }
   };
 
-  // Effect to redirect if both are ready?
-  // No, let's just let the terminal callback handle it if ID is present.
-  // If ID comes LATER than terminal, we need to redirect then.
-  
-  // Let's use an effect.
-  const [terminalDone, setTerminalDone] = useState(false);
-  
-  if (terminalDone && prospectId) {
-      router.push(`/prospects/${prospectId}/mix`);
-  }
-
   return (
-    <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-4 text-zinc-50">
-      <div className="w-full max-w-2xl">
-        <AnimatePresence mode="wait">
-          {!showTerminal ? (
-            <motion.div
-              key="input-view"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.5 }}
-              className="space-y-12 text-center"
+    <main className="flex min-h-screen flex-col items-center justify-center bg-zinc-950 p-4 text-white selection:bg-white/20 relative">
+      {/* Credit Badge */}
+      {credits !== null && (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="absolute top-6 right-6 bg-zinc-900 border border-zinc-800 px-4 py-2 rounded-full text-sm text-zinc-400 flex items-center gap-2"
+        >
+          <Gift className="w-4 h-4 text-indigo-400" />
+          <span>
+            무료 크레딧: <span className="text-white font-semibold">{credits}</span>회 남음
+          </span>
+        </motion.div>
+      )}
+      
+      <AnimatePresence mode="wait">
+        {status === 'idle' ? (
+          <motion.div
+            key="input-section"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20, filter: 'blur(10px)' }}
+            transition={{ duration: 0.5 }}
+            className="flex w-full max-w-4xl flex-col items-center gap-12"
+          >
+            <motion.h1
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2, duration: 1 }}
+              className="text-center text-lg font-medium text-zinc-400 md:text-xl"
             >
-              <div className="space-y-4">
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.2 }}
-                  className="flex items-center justify-center space-x-2 text-zinc-500 mb-8"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  <span className="text-sm font-medium tracking-wider uppercase">Vision AI Analyst</span>
-                </motion.div>
-                
-                <h1 className="text-4xl md:text-6xl font-bold tracking-tight">
-                  <span className="bg-gradient-to-r from-zinc-100 via-zinc-400 to-zinc-600 bg-clip-text text-transparent">
-                    어떤 브랜드를
-                    <br />
-                    분석할까요?
-                  </span>
-                </h1>
-              </div>
+              분석할 브랜드의 URL을 입력하세요
+            </motion.h1>
 
-              <form onSubmit={handleSubmit} className="relative group">
-                <input
-                  type="url"
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  placeholder="https://example.com"
-                  className="w-full bg-transparent border-b-2 border-zinc-800 py-4 text-2xl md:text-4xl text-center focus:outline-none focus:border-indigo-500 transition-colors placeholder:text-zinc-800"
-                  autoFocus
-                />
-                
-                <AnimatePresence>
-                  {url.length > 0 && (
-                    <motion.button
-                      initial={{ opacity: 0, x: 10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: 10 }}
-                      type="submit"
-                      className="absolute right-0 top-1/2 -translate-y-1/2 p-2 text-indigo-500 hover:text-indigo-400 transition-colors"
-                    >
-                      <ArrowRight className="w-8 h-8" />
-                    </motion.button>
-                  )}
-                </AnimatePresence>
-              </form>
-
-              <motion.p
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.5 }}
-                className="text-zinc-600 text-sm"
-              >
-                Press Enter to start analysis
-              </motion.p>
-            </motion.div>
-          ) : (
-            <AnalysisTerminal onComplete={() => setTerminalDone(true)} />
-          )}
-        </AnimatePresence>
-      </div>
-    </div>
+            <form onSubmit={handleSubmit} className="relative w-full">
+              <input
+                ref={inputRef}
+                type="url"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="linkpitch.io"
+                className="w-full bg-transparent text-center text-4xl font-bold text-white placeholder:text-zinc-800 focus:outline-none md:text-6xl"
+                autoComplete="off"
+                spellCheck="false"
+              />
+              
+              <AnimatePresence>
+                {url.length > 0 && (
+                  <motion.button
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.95 }}
+                    type="submit"
+                    className="absolute -right-4 top-1/2 -translate-y-1/2 translate-x-full rounded-full bg-white p-4 text-black shadow-lg shadow-white/10 transition-colors hover:bg-zinc-200 md:-right-12"
+                  >
+                    <ArrowRight className="h-6 w-6" />
+                  </motion.button>
+                )}
+              </AnimatePresence>
+            </form>
+          </motion.div>
+        ) : (
+          <AnalysisTerminal onComplete={handleTerminalComplete} />
+        )}
+      </AnimatePresence>
+    </main>
   );
 }

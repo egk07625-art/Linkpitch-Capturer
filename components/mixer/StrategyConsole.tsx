@@ -42,29 +42,29 @@ export default function StrategyConsole() {
   const { customContext, setCustomContext } = useMixerStore();
 
   const strategies = [
-    { id: 'strat-1', label: 'Competitor Analysis' },
-    { id: 'strat-2', label: 'Performance Graph' },
-    { id: 'strat-3', label: 'Recent News' },
-    { id: 'strat-4', label: 'Tech Stack' },
+    { id: 'strat-1', label: '🎯 경쟁사 분석' },
+    { id: 'strat-2', label: '📊 성과 그래프' },
+    { id: 'strat-3', label: '📰 최근 뉴스' },
+    { id: 'strat-4', label: '⚙️ 사용 기술' },
   ];
 
   return (
     <div className="h-full flex flex-col p-6 border-r border-zinc-800 bg-zinc-950">
       <div className="mb-8">
         <h2 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-4">
-          Custom Context
+          나만의 무기 (성과/강점)
         </h2>
         <textarea
           value={customContext}
           onChange={(e) => setCustomContext(e.target.value)}
-          placeholder="Enter your weapon/strength..."
+          placeholder="지난 3개월간 뷰티 브랜드 ROAS 200% 달성 등, 당신만의 구체적인 성과를 입력하세요."
           className="w-full h-32 bg-zinc-900/50 border border-zinc-800 rounded-lg p-3 text-sm text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-700 resize-none"
         />
       </div>
 
       <div className="flex-1">
         <h2 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-4">
-          Strategy Chips
+          전략 칩 (드래그하세요)
         </h2>
         <div className="space-y-3">
           {strategies.map((strat) => (
