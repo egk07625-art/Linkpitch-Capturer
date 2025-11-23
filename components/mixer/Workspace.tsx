@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { 
   DndContext, 
   DragOverlay, 
@@ -57,6 +57,14 @@ export default function Workspace() {
   const [droppedInsights, setDroppedInsights] = useState<VisionItem[]>([])
   const [aiEmailContent, setAiEmailContent] = useState('')
   const [showMergeModal, setShowMergeModal] = useState(false)
+  const [isAiBarOpen, setIsAiBarOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted) return null
 
   // --- DnD Handlers ---
   const handleDragStart = (event: DragStartEvent) => {
@@ -203,34 +211,45 @@ export default function Workspace() {
           </AnimatePresence>
 
           {/* === CENTER: Drop Zone (only for report tab) === */}
-          {activeTab === 'report' && (
-            <div className="w-96 flex-shrink-0 border-r border-zinc-800/50 bg-zinc-950">
-              <DropZone 
-                droppedInsights={droppedInsights}
-                onRemove={removeFromDropZone}
-              />
-            </div>
-          )}
+          {/* === CENTER: Drop Zone (only for report tab) === */}
+          <AnimatePresence mode="wait">
+            {activeTab === 'report' && (
+              <motion.div
+                initial={{ width: 0, opacity: 0 }}
+                animate={{ width: 384, opacity: 1 }}
+                exit={{ width: 0, opacity: 0 }}
+                transition={{ duration: 0.3, ease: "easeInOut" }}
+                className="flex-shrink-0 border-r border-zinc-800/50 bg-zinc-950 overflow-hidden"
+              >
+                <div className="w-96 h-full">
+                  <DropZone 
+                    droppedInsights={droppedInsights}
+                    onRemove={removeFromDropZone}
+                  />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* === RIGHT PANE: Content Area === */}
-          <div className="flex-1 flex flex-col bg-zinc-950 relative">
+          <div className="flex-1 flex flex-col bg-zinc-950 relative h-full overflow-hidden">
               
               {/* Tab Switcher */}
               <div className="flex justify-center pt-6 pb-2 z-20">
                 <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-[320px]">
-                  <TabsList className="grid w-full grid-cols-2 bg-zinc-900/80 border border-zinc-800/50 backdrop-blur-xl h-10 p-1 rounded-lg">
-                    <TabsTrigger value="email" className="text-xs data-[state=active]:bg-zinc-800 data-[state=active]:text-zinc-100 transition-all">
-                      <Mail className="w-3 h-3 mr-2" /> 콜드메일 작성
+                  <TabsList className="grid w-full grid-cols-2 bg-zinc-800/50 rounded-full p-1">
+                    <TabsTrigger value="email" className="rounded-full text-xs font-medium text-zinc-400 data-[state=active]:bg-zinc-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-300">
+                      <Mail className="w-3 h-3 mr-2" /> 메일 본문
                     </TabsTrigger>
-                    <TabsTrigger value="report" className="text-xs data-[state=active]:bg-zinc-800 data-[state=active]:text-zinc-100 transition-all">
-                      <FileText className="w-3 h-3 mr-2" /> 제안서 미리보기
+                    <TabsTrigger value="report" className="rounded-full text-xs font-medium text-zinc-400 data-[state=active]:bg-zinc-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-300">
+                      <FileText className="w-3 h-3 mr-2" /> AI 드래프팅
                     </TabsTrigger>
                   </TabsList>
                 </Tabs>
               </div>
 
               {/* Content Area */}
-              <ScrollArea className="flex-1 w-full pb-24">
+              <ScrollArea className="flex-1 w-full min-h-0 pb-6">
                 {activeTab === 'email' ? (
                   <SimpleEmailEditor 
                     content={editorContent}
@@ -246,31 +265,63 @@ export default function Workspace() {
                 )}
               </ScrollArea>
 
+              {/* AI Command Bar (Fixed at bottom of Right Pane) */}
+              {/* AI Command Bar (Toggleable) */}
+
             </div>
         </div>
         
         {/* Fixed AI Command Bar (Always at bottom of viewport) */}
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[600px] max-w-[90%] z-50 pointer-events-none">
-          <div className="relative group pointer-events-auto">
-            <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl opacity-20 group-hover:opacity-40 blur transition duration-500" />
-            <div className="relative bg-zinc-900/95 backdrop-blur-xl border border-zinc-700/50 rounded-xl shadow-2xl flex items-center p-1.5 pl-4 overflow-hidden">
-              <Bot className="w-5 h-5 text-indigo-400 mr-3 animate-pulse" />
-              <input 
-                type="text" 
-                placeholder="AI에게 메시지 개선이나 톤 조정을 요청하세요..." 
-                className="flex-1 bg-transparent border-none outline-none text-sm text-zinc-200 placeholder:text-zinc-500 h-10"
-              />
-              <div className="flex gap-1">
-                <Button size="icon" variant="ghost" className="h-8 w-8 text-zinc-400 hover:text-white rounded-lg">
-                  <Sparkles className="w-4 h-4" />
-                </Button>
-                <Button size="sm" className="h-8 px-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-medium">
-                  실행
-                </Button>
+        <AnimatePresence>
+          {!isAiBarOpen ? (
+            <motion.button
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0, opacity: 0 }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setIsAiBarOpen(true)}
+              className="fixed bottom-6 right-6 h-12 w-12 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/30 flex items-center justify-center z-50 transition-colors"
+            >
+              <Bot className="w-6 h-6" />
+            </motion.button>
+          ) : (
+            <motion.div
+              initial={{ y: 100, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 100, opacity: 0 }}
+              className="fixed bottom-0 left-0 w-full px-8 pb-6 pt-2 z-50 pointer-events-none"
+            >
+              <div className="pointer-events-auto w-full max-w-3xl mx-auto">
+                <div className="relative group">
+                  <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl opacity-20 group-hover:opacity-40 blur transition duration-500" />
+                  <div className="relative bg-zinc-900/95 backdrop-blur-xl border border-zinc-700/50 rounded-xl shadow-2xl flex items-center p-1.5 pl-4 overflow-hidden">
+                    <Bot className="w-5 h-5 text-indigo-400 mr-3 animate-pulse" />
+                    <input 
+                      type="text" 
+                      placeholder="AI에게 메시지 개선이나 톤 조정을 요청하세요..." 
+                      className="flex-1 bg-transparent border-none outline-none text-sm text-zinc-200 placeholder:text-zinc-500 h-10"
+                      autoFocus
+                    />
+                    <div className="flex gap-1">
+                      <Button 
+                        size="icon" 
+                        variant="ghost" 
+                        className="h-8 w-8 text-zinc-400 hover:text-white rounded-lg"
+                        onClick={() => setIsAiBarOpen(false)}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                      <Button size="sm" className="h-8 px-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-medium">
+                        실행
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Drag Overlay (Visual feedback when dragging) */}
@@ -356,7 +407,7 @@ function DraggableStrategyChip({ item, onUpdate }: DraggableStrategyChipProps) {
       {...listeners}
       {...attributes}
       className={cn(
-        "relative group bg-zinc-800/40 hover:bg-zinc-800/60 border border-zinc-700/50 hover:border-zinc-600 rounded-lg p-3 cursor-grab active:cursor-grabbing transition-all",
+        "relative group bg-zinc-900/30 backdrop-blur-sm border border-white/5 hover:border-indigo-500/30 rounded-lg p-3 cursor-grab active:cursor-grabbing transition-all duration-300",
         isDragging && "opacity-50 scale-95"
       )}
     >
@@ -423,10 +474,9 @@ function DropZone({ droppedInsights, onRemove }: { droppedInsights: VisionItem[]
         )}
       >
         {droppedInsights.length === 0 ? (
-          <div className="h-full border-2 border-dashed border-zinc-800 rounded-xl flex flex-col items-center justify-center text-zinc-500">
-            <Sparkles className="w-8 h-8 mb-3 opacity-50" />
-            <p className="text-base font-medium">인사이트를 여기로 드래그하세요</p>
-            <p className="text-sm mt-1">AI가 이 내용을 바탕으로 제안서를 작성합니다</p>
+          <div className="h-full bg-gradient-to-b from-zinc-900/50 to-transparent rounded-xl flex flex-col items-center justify-center text-zinc-500">
+            <Sparkles className="w-12 h-12 mb-4 text-indigo-500/50 animate-pulse" />
+            <p className="text-base font-medium text-zinc-500">이곳에 칩을 놓고 "제안서 작성" 버튼을 누르면 AI가 조합하여 작성합니다.</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -506,10 +556,9 @@ function AIEmailPreview({
         <Button
           onClick={onMerge}
           disabled={droppedInsights.length === 0}
-          className="bg-indigo-600 hover:bg-indigo-500 text-white"
+          className="bg-[#5B21B6] hover:bg-[#4C1D95] text-white px-6 py-2.5 rounded-lg font-medium text-sm transition-all shadow-md border-none"
         >
-          <Sparkles className="w-4 h-4 mr-2" />
-          인사이트 합치기
+          제안서 생성
         </Button>
       </div>
 
