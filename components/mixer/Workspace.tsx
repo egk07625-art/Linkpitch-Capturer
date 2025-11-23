@@ -21,7 +21,10 @@ import {
   Mail, 
   Sparkles,
   PanelLeftClose,
-  PanelLeftOpen
+  PanelLeftOpen,
+  Upload,
+  Plus,
+  X
 } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
@@ -34,22 +37,26 @@ type VisionItem = {
   id: string
   label: string
   content: string
-  type: 'text' | 'image'
+  type: 'text' | 'image' | 'file'
+  isUserAsset?: boolean
 }
 
 const INITIAL_VISION_DATA: VisionItem[] = [
-  { id: 'v1', label: '크리에이티브 무드', content: '럭셔리, 미니멀리스트, 하이엔드 패션', type: 'text' },
-  { id: 'v2', label: '비주얼 차별점', content: '극도의 클로즈업 텍스처와 높은 대비 조명', type: 'text' },
-  { id: 'v3', label: '메인 소재', content: '금도금 향수병', type: 'text' },
-  { id: 'v4', label: '성과 데이터', content: 'ROAS +280% (이미지 소재)', type: 'image' },
+  { id: 'v1', label: '크리에이티브 무드', content: '럭셔리, 미니멀리스트, 하이엔드 패션', type: 'text', isUserAsset: false },
+  { id: 'v2', label: '비주얼 차별점', content: '극도의 클로즈업 텍스처와 높은 대비 조명', type: 'text', isUserAsset: false },
+  { id: 'v3', label: '메인 소재', content: '금도금 향수병', type: 'text', isUserAsset: false },
+  { id: 'v4', label: '성과 데이터', content: 'ROAS +280% (이미지 소재)', type: 'image', isUserAsset: false },
 ]
 
 export default function Workspace() {
-  const [activeTab, setActiveTab] = useState<'email' | 'report'>('email')
+  const [activeTab, setActiveTab] = useState<'email' | 'report'>('report')
   const [visionItems, setVisionItems] = useState(INITIAL_VISION_DATA)
   const [editorContent, setEditorContent] = useState('')
   const [draggedItem, setDraggedItem] = useState<VisionItem | null>(null)
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
+  const [droppedInsights, setDroppedInsights] = useState<VisionItem[]>([])
+  const [aiEmailContent, setAiEmailContent] = useState('')
+  const [showMergeModal, setShowMergeModal] = useState(false)
 
   // --- DnD Handlers ---
   const handleDragStart = (event: DragStartEvent) => {
@@ -60,10 +67,13 @@ export default function Workspace() {
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { over } = event
-    if (over && over.id === 'editor-drop-zone' && draggedItem) {
-      // Simulate inserting content into editor
-      const newContent = `\n[Inserted Strategy: ${draggedItem.content}]\n`
-      setEditorContent((prev) => prev + newContent)
+    if (over && over.id === 'drop-zone' && draggedItem) {
+      // Add to dropped insights if not already added
+      if (!droppedInsights.find(item => item.id === draggedItem.id)) {
+        setDroppedInsights(prev => [...prev, draggedItem])
+        // Remove from vision items (move instead of copy)
+        setVisionItems(prev => prev.filter(item => item.id !== draggedItem.id))
+      }
     }
     setDraggedItem(null)
   }
@@ -73,6 +83,35 @@ export default function Workspace() {
     setVisionItems(prev => prev.map(item => 
       item.id === id ? { ...item, content: newContent } : item
     ))
+  }
+
+  // --- Remove from Drop Zone ---
+  const removeFromDropZone = (id: string) => {
+    const removedItem = droppedInsights.find(item => item.id === id)
+    if (removedItem) {
+      // Add back to vision items
+      setVisionItems(prev => [...prev, removedItem])
+      // Remove from dropped insights
+      setDroppedInsights(prev => prev.filter(item => item.id !== id))
+    }
+  }
+
+  // --- Merge Handler ---
+  const handleMerge = async () => {
+    // TODO: Call LLM API to merge droppedInsights + aiEmailContent
+    setShowMergeModal(true)
+  }
+
+  // --- File Upload Handler ---
+  const handleFileUpload = (files: File[]) => {
+    const newItems: VisionItem[] = files.map(file => ({
+      id: `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      label: '내 소재 파일',
+      content: file.name, // In a real app, this might be a URL or file preview
+      type: 'file',
+      isUserAsset: true
+    }))
+    setVisionItems(prev => [...prev, ...newItems])
   }
 
   return (
@@ -92,7 +131,7 @@ export default function Workspace() {
         {/* 1. Header: Minimalist & Functional */}
         <Header isSidebarOpen={isSidebarOpen} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
 
-        {/* 2. Main Workspace: Split View */}
+        {/* 2. Main Workspace: 3-Column Layout */}
         <div className="flex-1 overflow-hidden relative flex">
           
           {/* === LEFT PANE: Collapsible Sidebar === */}
@@ -123,11 +162,11 @@ export default function Workspace() {
                     <div className="space-y-8">
                       {/* Section: Vision Analysis */}
                       <section>
-                        <h3 className="text-xs font-bold text-zinc-500 tracking-widest mb-4 pl-1">
+                        <h3 className="text-sm font-bold text-zinc-400 tracking-wider mb-4 pl-1 uppercase">
                           크리에이티브 인사이트
                         </h3>
                         <div className="space-y-3">
-                          {visionItems.map((item) => (
+                          {visionItems.filter(i => !i.isUserAsset).map((item) => (
                             <DraggableStrategyChip 
                               key={item.id} 
                               item={item} 
@@ -139,12 +178,21 @@ export default function Workspace() {
 
                       {/* Section: User Assets */}
                       <section>
-                        <h3 className="text-xs font-bold text-zinc-500 tracking-widest mb-4 pl-1">
+                        <h3 className="text-sm font-bold text-zinc-400 tracking-wider mb-4 pl-1 uppercase">
                           내 소재
                         </h3>
-                        <div className="h-32 border border-dashed border-zinc-800 rounded-xl flex flex-col items-center justify-center text-zinc-500 hover:border-zinc-600 hover:bg-zinc-800/30 transition-colors cursor-pointer group">
-                          <FileText className="w-6 h-6 mb-2 opacity-50 group-hover:opacity-100 transition-opacity" />
-                          <span className="text-xs">소재 파일 추가하기</span>
+                        <div className="space-y-3">
+                          {/* Uploaded User Assets */}
+                          {visionItems.filter(i => i.isUserAsset).map((item) => (
+                            <DraggableStrategyChip 
+                              key={item.id} 
+                              item={item} 
+                              onUpdate={updateVisionItem} 
+                            />
+                          ))}
+
+                          {/* Upload Box */}
+                          <FileUploader onFileUpload={handleFileUpload} />
                         </div>
                       </section>
                     </div>
@@ -154,10 +202,20 @@ export default function Workspace() {
             )}
           </AnimatePresence>
 
-          {/* === RIGHT PANE: Editor Canvas === */}
+          {/* === CENTER: Drop Zone (only for report tab) === */}
+          {activeTab === 'report' && (
+            <div className="w-96 flex-shrink-0 border-r border-zinc-800/50 bg-zinc-950">
+              <DropZone 
+                droppedInsights={droppedInsights}
+                onRemove={removeFromDropZone}
+              />
+            </div>
+          )}
+
+          {/* === RIGHT PANE: Content Area === */}
           <div className="flex-1 flex flex-col bg-zinc-950 relative">
               
-              {/* Tab Switcher (Floating feel) */}
+              {/* Tab Switcher */}
               <div className="flex justify-center pt-6 pb-2 z-20">
                 <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-[320px]">
                   <TabsList className="grid w-full grid-cols-2 bg-zinc-900/80 border border-zinc-800/50 backdrop-blur-xl h-10 p-1 rounded-lg">
@@ -171,13 +229,21 @@ export default function Workspace() {
                 </Tabs>
               </div>
 
-              {/* The Editor Canvas - with bottom padding for fixed AI bar */}
+              {/* Content Area */}
               <ScrollArea className="flex-1 w-full pb-24">
-                <DroppableEditor 
-                  activeTab={activeTab} 
-                  content={editorContent} 
-                  setContent={setEditorContent} 
-                />
+                {activeTab === 'email' ? (
+                  <SimpleEmailEditor 
+                    content={editorContent}
+                    setContent={setEditorContent}
+                  />
+                ) : (
+                  <AIEmailPreview
+                    aiContent={aiEmailContent}
+                    setAiContent={setAiEmailContent}
+                    droppedInsights={droppedInsights}
+                    onMerge={handleMerge}
+                  />
+                )}
               </ScrollArea>
 
             </div>
@@ -219,6 +285,13 @@ export default function Workspace() {
           </div>
         ) : null}
       </DragOverlay>
+
+      {/* Merge Result Modal */}
+      <MergeModal
+        isOpen={showMergeModal}
+        onClose={() => setShowMergeModal(false)}
+        mergedContent="TODO: LLM API 호출 결과가 여기에 표시됩니다."
+      />
     </DndContext>
   )
 }
@@ -294,7 +367,7 @@ function DraggableStrategyChip({ item, onUpdate }: DraggableStrategyChipProps) {
 
       {/* Content */}
       <div className="pl-6">
-        <p className="text-[10px] font-bold text-indigo-400 mb-1.5">{item.label}</p>
+        <p className="text-xs font-bold text-indigo-400 mb-2">{item.label}</p>
         {isEditing ? (
           <input
             type="text"
@@ -303,12 +376,12 @@ function DraggableStrategyChip({ item, onUpdate }: DraggableStrategyChipProps) {
             onBlur={handleBlur}
             onKeyDown={(e) => e.key === 'Enter' && handleBlur()}
             autoFocus
-            className="w-full bg-zinc-900/50 border border-indigo-500/50 rounded px-2 py-1 text-xs text-zinc-200 outline-none"
+            className="w-full bg-zinc-900/50 border border-indigo-500/50 rounded px-2 py-1 text-sm text-zinc-200 outline-none"
           />
         ) : (
           <p
             onClick={() => setIsEditing(true)}
-            className="text-xs text-zinc-300 leading-relaxed cursor-text hover:text-zinc-100 transition-colors"
+            className="text-sm text-zinc-300 leading-relaxed cursor-text hover:text-zinc-100 transition-colors"
           >
             {item.content}
           </p>
@@ -318,7 +391,7 @@ function DraggableStrategyChip({ item, onUpdate }: DraggableStrategyChipProps) {
       {/* Edit Hint */}
       {!isEditing && (
         <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-          <span className="text-[9px] text-zinc-500">클릭하여 수정</span>
+          <span className="text-[10px] text-zinc-500">클릭하여 수정</span>
         </div>
       )}
     </div>
@@ -326,66 +399,270 @@ function DraggableStrategyChip({ item, onUpdate }: DraggableStrategyChipProps) {
 }
 
 /**
- * 3. Droppable Editor Area
+ * 3. Drop Zone Component
  */
-type DroppableEditorProps = {
-  activeTab: 'email' | 'report'
-  content: string
-  setContent: (content: string) => void
-}
-
-function DroppableEditor({ activeTab, content, setContent }: DroppableEditorProps) {
-  const { setNodeRef, isOver } = useDroppable({ id: 'editor-drop-zone' })
+function DropZone({ droppedInsights, onRemove }: { droppedInsights: VisionItem[], onRemove: (id: string) => void }) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: 'drop-zone',
+  })
 
   return (
-    <div ref={setNodeRef} className="w-full">
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={activeTab}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.2 }}
-          className="w-full"
-        >
-          {/* The "Paper" Area */}
-          <div className="min-h-[600px] text-zinc-100 p-8 md:p-12 bg-transparent outline-none">
-            
-            {activeTab === 'email' && (
-               <div className="mb-8 space-y-2 border-b border-zinc-800 pb-6">
-                  <label className="text-xs font-semibold text-zinc-500">제목</label>
-                  <input 
-                    className="w-full bg-transparent text-2xl font-semibold text-white placeholder:text-zinc-700 outline-none"
-                    placeholder="클릭률 높은 제목을 입력하세요..."
-                    defaultValue="Re: 최근 캠페인 성과 관련 문의드립니다"
-                  />
-               </div>
-            )}
+    <div className="h-full flex flex-col">
+      {/* Header */}
+      <div className="px-5 py-4 border-b border-zinc-800/50 bg-zinc-900/50">
+        <h3 className="text-base font-semibold text-zinc-200">선택한 인사이트</h3>
+        <p className="text-sm text-zinc-500 mt-1">{droppedInsights.length}개 선택됨</p>
+      </div>
 
-            <div 
-              className="prose prose-invert max-w-none text-lg leading-relaxed text-zinc-300/90 whitespace-pre-wrap outline-none empty:before:content-['인사이트를_드래그하거나_직접_작성하세요...'] empty:before:text-zinc-700"
-              contentEditable
-              suppressContentEditableWarning
-              onInput={(e) => setContent(e.currentTarget.textContent || '')}
-            >
-              {content || (
-                activeTab === 'email' 
-                ? "안녕하세요 [Name]님,\n\n최근 귀사의 캠페인을 보고 성과 개선 방안을 제안드리고자 연락드립니다...\n\n"
-                : "# 크리에이티브 성과 분석\n\nAI 분석 결과, 현재 소재가 타겟 오디언스에게 높은 반응을 얻고 있습니다..."
-              )}
-            </div>
-
-            {/* Visual Cue for Drop */}
-            {isOver && (
-              <div className="mt-4 h-24 border-2 border-dashed border-indigo-500/50 rounded-xl bg-indigo-500/5 flex items-center justify-center animate-pulse">
-                <span className="text-indigo-400 font-medium text-sm flex items-center gap-2">
-                  <Sparkles className="w-4 h-4" /> 여기에 인사이트 추가
-                </span>
-              </div>
-            )}
+      {/* Drop Area */}
+      <div
+        ref={setNodeRef}
+        className={cn(
+          "flex-1 p-5 transition-colors",
+          isOver && "bg-indigo-500/10"
+        )}
+      >
+        {droppedInsights.length === 0 ? (
+          <div className="h-full border-2 border-dashed border-zinc-800 rounded-xl flex flex-col items-center justify-center text-zinc-500">
+            <Sparkles className="w-8 h-8 mb-3 opacity-50" />
+            <p className="text-base font-medium">인사이트를 여기로 드래그하세요</p>
+            <p className="text-sm mt-1">AI가 이 내용을 바탕으로 제안서를 작성합니다</p>
           </div>
-        </motion.div>
-      </AnimatePresence>
+        ) : (
+          <div className="space-y-3">
+            {droppedInsights.map((item) => (
+              <div 
+                key={item.id}
+                className="relative group bg-zinc-800/60 border border-indigo-500/30 rounded-lg p-4"
+              >
+                <button
+                  onClick={() => onRemove(item.id)}
+                  className="absolute top-2 right-2 p-1 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-700 rounded opacity-0 group-hover:opacity-100 transition-all"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <p className="text-xs font-bold text-indigo-400 mb-1">{item.label}</p>
+                <p className="text-sm text-zinc-200">{item.content}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * 4. Simple Email Editor Component
+ */
+function SimpleEmailEditor({ content, setContent }: { content: string, setContent: (c: string) => void }) {
+  return (
+    <div className="max-w-3xl mx-auto py-12 px-8">
+      <div className="mb-8 space-y-2 border-b border-zinc-800 pb-6">
+        <label className="text-xs font-semibold text-zinc-500">제목</label>
+        <input 
+          className="w-full bg-transparent text-2xl font-semibold text-white placeholder:text-zinc-700 outline-none"
+          placeholder="클릭률 높은 제목을 입력하세요..."
+          defaultValue="Re: 최근 캠페인 성과 관련 문의드립니다"
+        />
+      </div>
+
+      <div 
+        className="prose prose-invert max-w-none text-lg leading-relaxed text-zinc-300/90 whitespace-pre-wrap outline-none min-h-[400px] empty:before:content-['이메일_내용을_작성하세요...'] empty:before:text-zinc-700"
+        contentEditable
+        suppressContentEditableWarning
+        onInput={(e) => setContent(e.currentTarget.textContent || '')}
+      >
+        {content || "안녕하세요 [Name]님,\n\n최근 귀사의 캠페인을 보고 성과 개선 방안을 제안드리고자 연락드립니다...\\n\\n"}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * 5. AI Email Preview Component
+ */
+function AIEmailPreview({ 
+  aiContent, 
+  setAiContent, 
+  droppedInsights,
+  onMerge 
+}: { 
+  aiContent: string
+  setAiContent: (c: string) => void
+  droppedInsights: VisionItem[]
+  onMerge: () => void
+}) {
+  return (
+    <div className="max-w-3xl mx-auto py-12 px-8">
+      <div className="mb-6 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <h2 className="text-xl font-bold text-zinc-100">AI 생성 제안서</h2>
+          <Badge variant="outline" className="text-xs border-indigo-500/50 text-indigo-400">
+            <Bot className="w-3 h-3 mr-1" />
+            AI 생성됨
+          </Badge>
+        </div>
+        <Button
+          onClick={onMerge}
+          disabled={droppedInsights.length === 0}
+          className="bg-indigo-600 hover:bg-indigo-500 text-white"
+        >
+          <Sparkles className="w-4 h-4 mr-2" />
+          인사이트 합치기
+        </Button>
+      </div>
+
+      {/* Info Box */}
+      <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-lg p-4 mb-8 flex items-start gap-3">
+        <Sparkles className="w-5 h-5 text-indigo-400 flex-shrink-0 mt-0.5" />
+        <div className="space-y-1">
+          <p className="text-sm text-zinc-200 font-medium">
+            {droppedInsights.length}개의 인사이트가 선택되었습니다
+          </p>
+          <p className="text-xs text-zinc-400 leading-relaxed">
+            좌측에서 선택한 인사이트들이 AI 제안서에 자동으로 반영됩니다. 
+            '인사이트 합치기'를 클릭하여 최종 제안서를 생성하세요.
+          </p>
+        </div>
+      </div>
+
+      <div 
+        className="prose prose-invert max-w-none text-base leading-relaxed text-zinc-300 whitespace-pre-wrap outline-none min-h-[400px]"
+        contentEditable
+        suppressContentEditableWarning
+        onInput={(e) => setAiContent(e.currentTarget.textContent || '')}
+      >
+        {aiContent || "URL을 입력하면 AI가 자동으로 초안을 작성합니다..."}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * 6. Merge Modal Component
+ */
+function MergeModal({ isOpen, onClose, mergedContent }: { isOpen: boolean, onClose: () => void, mergedContent: string }) {
+  if (!isOpen) return null
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl w-full max-w-4xl max-h-[80vh] flex flex-col"
+      >
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-indigo-500/10 rounded-lg">
+              <Sparkles className="w-5 h-5 text-indigo-400" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-zinc-100">최종 제안서 생성 완료</h3>
+              <p className="text-xs text-zinc-400">선택한 인사이트가 모두 반영되었습니다</p>
+            </div>
+          </div>
+          <button 
+            onClick={onClose}
+            className="p-2 hover:bg-zinc-800 rounded-lg transition-colors"
+          >
+            <X className="w-5 h-5 text-zinc-400" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <ScrollArea className="flex-1 p-6">
+          <div className="prose prose-invert max-w-none">
+            <div className="whitespace-pre-wrap text-zinc-300 leading-relaxed">
+              {mergedContent || "LLM이 생성한 최종 제안서가 여기에 표시됩니다..."}
+            </div>
+          </div>
+        </ScrollArea>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-zinc-800 flex justify-end gap-3">
+          <Button variant="ghost" onClick={onClose}>
+            닫기
+          </Button>
+          <Button className="bg-indigo-600 hover:bg-indigo-500 text-white">
+            다운로드
+          </Button>
+        </div>
+      </motion.div>
+    </div>
+  )
+}
+
+/**
+ * 7. File Uploader Component
+ */
+function FileUploader({ onFileUpload }: { onFileUpload: (files: File[]) => void }) {
+  const [isDragging, setIsDragging] = useState(false)
+  const fileInputRef = React.useRef<HTMLInputElement>(null)
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      onFileUpload(Array.from(e.dataTransfer.files))
+    }
+  }
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      onFileUpload(Array.from(e.target.files))
+    }
+    // Reset input so same file can be selected again if needed
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  return (
+    <div
+      onClick={() => fileInputRef.current?.click()}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      className={cn(
+        "h-24 border border-dashed rounded-xl flex flex-col items-center justify-center text-zinc-500 transition-all cursor-pointer group",
+        isDragging 
+          ? "border-indigo-500 bg-indigo-500/10 text-indigo-400" 
+          : "border-zinc-800 hover:border-zinc-600 hover:bg-zinc-800/30"
+      )}
+    >
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        onChange={handleFileSelect} 
+        className="hidden" 
+        multiple 
+      />
+      <div className={cn(
+        "p-2 rounded-full mb-1 transition-colors",
+        isDragging ? "bg-indigo-500/20" : "bg-zinc-800/50 group-hover:bg-zinc-800"
+      )}>
+        {isDragging ? (
+          <Upload className="w-5 h-5 animate-bounce" />
+        ) : (
+          <Plus className="w-5 h-5 group-hover:text-zinc-300" />
+        )}
+      </div>
+      <span className="text-xs font-medium">
+        {isDragging ? "여기에 놓으세요" : "파일 추가하기"}
+      </span>
     </div>
   )
 }
