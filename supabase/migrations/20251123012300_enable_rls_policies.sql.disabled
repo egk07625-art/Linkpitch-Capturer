@@ -21,12 +21,12 @@ ALTER TABLE generation_logs ENABLE ROW LEVEL SECURITY;
 -- ================================================
 
 -- Clerk JWT에서 clerk_id를 추출하여 users 테이블의 UUID를 반환
-CREATE OR REPLACE FUNCTION auth.user_id()
+CREATE OR REPLACE FUNCTION public.current_user_id()
 RETURNS UUID AS $$
   SELECT id FROM users
   WHERE clerk_id = auth.jwt()->>'sub'
   LIMIT 1;
-$$ LANGUAGE SQL STABLE;
+$$ LANGUAGE SQL STABLE SECURITY DEFINER;
 
 -- ================================================
 -- 3. Users Table Policies
@@ -59,26 +59,26 @@ CREATE POLICY "users_update_own"
 CREATE POLICY "prospects_select_own"
   ON prospects
   FOR SELECT
-  USING (user_id = auth.user_id());
+  USING (user_id = public.current_user_id());
 
 -- 사용자는 자신의 프로스펙트만 생성 가능
 CREATE POLICY "prospects_insert_own"
   ON prospects
   FOR INSERT
-  WITH CHECK (user_id = auth.user_id());
+  WITH CHECK (user_id = public.current_user_id());
 
 -- 사용자는 자신의 프로스펙트만 업데이트
 CREATE POLICY "prospects_update_own"
   ON prospects
   FOR UPDATE
-  USING (user_id = auth.user_id())
-  WITH CHECK (user_id = auth.user_id());
+  USING (user_id = public.current_user_id())
+  WITH CHECK (user_id = public.current_user_id());
 
 -- 사용자는 자신의 프로스펙트만 삭제
 CREATE POLICY "prospects_delete_own"
   ON prospects
   FOR DELETE
-  USING (user_id = auth.user_id());
+  USING (user_id = public.current_user_id());
 
 -- ================================================
 -- 5. Sequences Table Policies
@@ -87,23 +87,23 @@ CREATE POLICY "prospects_delete_own"
 CREATE POLICY "sequences_select_own"
   ON sequences
   FOR SELECT
-  USING (user_id = auth.user_id());
+  USING (user_id = public.current_user_id());
 
 CREATE POLICY "sequences_insert_own"
   ON sequences
   FOR INSERT
-  WITH CHECK (user_id = auth.user_id());
+  WITH CHECK (user_id = public.current_user_id());
 
 CREATE POLICY "sequences_update_own"
   ON sequences
   FOR UPDATE
-  USING (user_id = auth.user_id())
-  WITH CHECK (user_id = auth.user_id());
+  USING (user_id = public.current_user_id())
+  WITH CHECK (user_id = public.current_user_id());
 
 CREATE POLICY "sequences_delete_own"
   ON sequences
   FOR DELETE
-  USING (user_id = auth.user_id());
+  USING (user_id = public.current_user_id());
 
 -- ================================================
 -- 6. Step Table Policies
@@ -112,23 +112,23 @@ CREATE POLICY "sequences_delete_own"
 CREATE POLICY "step_select_own"
   ON step
   FOR SELECT
-  USING (user_id = auth.user_id());
+  USING (user_id = public.current_user_id());
 
 CREATE POLICY "step_insert_own"
   ON step
   FOR INSERT
-  WITH CHECK (user_id = auth.user_id());
+  WITH CHECK (user_id = public.current_user_id());
 
 CREATE POLICY "step_update_own"
   ON step
   FOR UPDATE
-  USING (user_id = auth.user_id())
-  WITH CHECK (user_id = auth.user_id());
+  USING (user_id = public.current_user_id())
+  WITH CHECK (user_id = public.current_user_id());
 
 CREATE POLICY "step_delete_own"
   ON step
   FOR DELETE
-  USING (user_id = auth.user_id());
+  USING (user_id = public.current_user_id());
 
 -- ================================================
 -- 7. Report Events Table Policies
@@ -137,12 +137,12 @@ CREATE POLICY "step_delete_own"
 CREATE POLICY "report_events_select_own"
   ON report_events
   FOR SELECT
-  USING (user_id = auth.user_id());
+  USING (user_id = public.current_user_id());
 
 CREATE POLICY "report_events_insert_own"
   ON report_events
   FOR INSERT
-  WITH CHECK (user_id = auth.user_id());
+  WITH CHECK (user_id = public.current_user_id());
 
 -- ================================================
 -- 8. Generation Logs Table Policies
@@ -151,12 +151,12 @@ CREATE POLICY "report_events_insert_own"
 CREATE POLICY "generation_logs_select_own"
   ON generation_logs
   FOR SELECT
-  USING (user_id = auth.user_id());
+  USING (user_id = public.current_user_id());
 
 CREATE POLICY "generation_logs_insert_own"
   ON generation_logs
   FOR INSERT
-  WITH CHECK (user_id = auth.user_id());
+  WITH CHECK (user_id = public.current_user_id());
 
 -- ================================================
 -- Completion Message
@@ -167,5 +167,5 @@ BEGIN
     RAISE NOTICE '✅ RLS Policies enabled successfully!';
     RAISE NOTICE '🔒 Tables protected: users, prospects, sequences, step, report_events, generation_logs';
     RAISE NOTICE '👤 Policy type: User owns their own data (user_id based)';
-    RAISE NOTICE '🔑 Authentication: Clerk JWT integration via auth.user_id()';
+    RAISE NOTICE '🔑 Authentication: Clerk JWT integration via public.current_user_id()';
 END $$;
