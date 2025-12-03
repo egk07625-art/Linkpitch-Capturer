@@ -25,7 +25,7 @@ export async function createSequence(
     .from("sequences")
     .insert({
       user_id: userId,
-      current_step: 0,
+      // current_step 필드는 DB에 없음 (제거됨)
       status: "draft", // 스키마 기본값과 일치
       ...input,
     })
@@ -94,9 +94,9 @@ export async function updateSequence(
 ): Promise<Sequence> {
   const supabase = createClerkSupabaseClient();
 
-  // status 제약 조건 검증
-  if (input.status && !['draft', 'active', 'completed', 'paused'].includes(input.status)) {
-    throw new Error(`Invalid status: ${input.status}. Must be one of: draft, active, completed, paused`);
+  // status 제약 조건 검증 (DB CHECK: 'draft', 'active', 'completed'만 허용)
+  if (input.status && !['draft', 'active', 'completed'].includes(input.status)) {
+    throw new Error(`Invalid status: ${input.status}. Must be one of: draft, active, completed`);
   }
 
   const { data, error } = await supabase
@@ -119,11 +119,15 @@ export async function updateSequence(
 
 /**
  * 현재 Step 업데이트
+ * @deprecated current_step 필드는 DB에서 제거되었습니다. 이 함수는 더 이상 사용되지 않습니다.
+ * 필요시 step 테이블의 step_number를 통해 현재 진행 상황을 추적하세요.
  */
 export async function updateCurrentStep(
-  userId: string,
-  sequenceId: string,
-  currentStep: number
+  _userId: string,
+  _sequenceId: string,
+  _currentStep: number
 ): Promise<Sequence> {
-  return updateSequence(userId, sequenceId, { current_step: currentStep });
+  // current_step 필드는 DB에 없으므로 이 함수는 더 이상 작동하지 않습니다.
+  // 대신 step 테이블의 step_number를 조회하여 현재 진행 상황을 파악하세요.
+  throw new Error('updateCurrentStep is deprecated: current_step field does not exist in the database. Use step table to track progress instead.');
 }
