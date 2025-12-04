@@ -1,29 +1,115 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { 
-  DndContext, 
-  DragOverlay, 
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  DndContext,
+  DragOverlay,
   useDraggable,
   useDroppable,
   DragEndEvent,
   DragStartEvent,
   closestCenter
 } from '@dnd-kit/core';
-import { GripVertical, Upload, Plus, Sparkles, ChevronLeft, ChevronRight } from 'lucide-react';
+import { GripVertical, Upload, Plus, Sparkles, ChevronLeft, ChevronRight, Image, FileText } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { VisionItem } from '@/types/vision';
+import type { Prospect, VisionData } from '@/types/prospect';
+import type { UserAsset } from '@/types/user-asset';
+import type { GeneratedEmail } from '@/types/generated-email';
+import { createUserAsset } from '@/actions/user-assets';
 import SequencePlaylist from './SequencePlaylist';
 import StrategySidebar from './StrategySidebar';
 
-const INITIAL_VISION_DATA: VisionItem[] = [
-  { id: 'v1', label: '크리에이티브 무드', content: '럭셔리, 미니멀리스트, 하이엔드 패션', type: 'text', isUserAsset: false },
-  { id: 'v2', label: '비주얼 차별점', content: '극도의 클로즈업 텍스처와 높은 대비 조명', type: 'text', isUserAsset: false },
-  { id: 'v3', label: '메인 소재', content: '금도금 향수병', type: 'text', isUserAsset: false },
-  { id: 'v4', label: '성과 데이터', content: 'ROAS +280% (이미지 소재)', type: 'image', isUserAsset: false },
-];
+interface WorkspaceClientProps {
+  prospectId: string;
+  prospect: Prospect;
+  visionData: VisionData | null;
+  initialUserAssets: UserAsset[];
+  initialGeneratedEmails: GeneratedEmail[];
+}
+
+// VisionData를 VisionItem 배열로 변환
+function visionDataToItems(visionData: VisionData | null): VisionItem[] {
+  if (!visionData) return [];
+
+  const items: VisionItem[] = [];
+
+  if (visionData.mood) {
+    items.push({
+      id: 'vision-mood',
+      label: '크리에이티브 무드',
+      content: visionData.mood,
+      type: 'text',
+      isUserAsset: false,
+    });
+  }
+
+  if (visionData.visual_usp && visionData.visual_usp.length > 0) {
+    items.push({
+      id: 'vision-usp',
+      label: '비주얼 차별점',
+      content: visionData.visual_usp.join(', '),
+      type: 'text',
+      isUserAsset: false,
+    });
+  }
+
+  if (visionData.price_offer) {
+    items.push({
+      id: 'vision-price',
+      label: '가격/이벤트 정보',
+      content: visionData.price_offer,
+      type: 'text',
+      isUserAsset: false,
+    });
+  }
+
+  if (visionData.report_title) {
+    items.push({
+      id: 'vision-title',
+      label: '리포트 헤드라인',
+      content: visionData.report_title,
+      type: 'text',
+      isUserAsset: false,
+    });
+  }
+
+  if (visionData.visual_analysis_text) {
+    items.push({
+      id: 'vision-analysis',
+      label: '시각적 분석',
+      content: visionData.visual_analysis_text,
+      type: 'text',
+      isUserAsset: false,
+    });
+  }
+
+  if (visionData.opportunity_text) {
+    items.push({
+      id: 'vision-opportunity',
+      label: '기회 포착',
+      content: visionData.opportunity_text,
+      type: 'text',
+      isUserAsset: false,
+    });
+  }
+
+  return items;
+}
+
+// UserAsset을 VisionItem으로 변환
+function userAssetToVisionItem(asset: UserAsset): VisionItem {
+  const typeLabel = asset.file_type.startsWith('image') ? '이미지' : '파일';
+  return {
+    id: `asset-${asset.id}`,
+    label: `내 소재 (${typeLabel})`,
+    content: asset.summary || asset.file_name,
+    type: asset.file_type.startsWith('image') ? 'image' : 'file',
+    isUserAsset: true,
+  };
+}
 
 // Draggable Strategy Chip Component
 type DraggableStrategyChipProps = {
@@ -43,6 +129,12 @@ function DraggableStrategyChip({ item, onUpdate }: DraggableStrategyChipProps) {
     }
   };
 
+  const getIcon = () => {
+    if (item.type === 'image') return <Image className="w-3 h-3 text-indigo-400" />;
+    if (item.type === 'file') return <FileText className="w-3 h-3 text-indigo-400" />;
+    return null;
+  };
+
   return (
     <div
       ref={setNodeRef}
@@ -57,7 +149,10 @@ function DraggableStrategyChip({ item, onUpdate }: DraggableStrategyChipProps) {
         <GripVertical className="w-3 h-3 text-zinc-600" />
       </div>
       <div className="pl-6">
-        <p className="text-xs font-bold text-indigo-400 mb-2">{item.label}</p>
+        <div className="flex items-center gap-1.5 mb-2">
+          {getIcon()}
+          <p className="text-xs font-bold text-indigo-400">{item.label}</p>
+        </div>
         {isEditing ? (
           <input
             type="text"
@@ -82,7 +177,7 @@ function DraggableStrategyChip({ item, onUpdate }: DraggableStrategyChipProps) {
 }
 
 // File Uploader Component
-function FileUploader({ onFileUpload }: { onFileUpload: (files: File[]) => void }) {
+function FileUploader({ onFileUpload, isUploading }: { onFileUpload: (files: File[]) => void; isUploading: boolean }) {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -115,23 +210,26 @@ function FileUploader({ onFileUpload }: { onFileUpload: (files: File[]) => void 
 
   return (
     <div
-      onClick={() => fileInputRef.current?.click()}
+      onClick={() => !isUploading && fileInputRef.current?.click()}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       className={cn(
         "h-24 border border-dashed rounded-xl flex flex-col items-center justify-center text-zinc-500 transition-all cursor-pointer group",
-        isDragging 
-          ? "border-indigo-500 bg-indigo-500/10 text-indigo-400" 
-          : "border-zinc-800 hover:border-zinc-600 hover:bg-zinc-800/30"
+        isDragging
+          ? "border-indigo-500 bg-indigo-500/10 text-indigo-400"
+          : "border-zinc-800 hover:border-zinc-600 hover:bg-zinc-800/30",
+        isUploading && "opacity-50 cursor-wait"
       )}
     >
-      <input 
-        type="file" 
-        ref={fileInputRef} 
-        onChange={handleFileSelect} 
-        className="hidden" 
-        multiple 
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileSelect}
+        className="hidden"
+        multiple
+        accept="image/*,.pdf,.gif"
+        disabled={isUploading}
       />
       <div className={cn(
         "p-2 rounded-full mb-1 transition-colors",
@@ -139,23 +237,25 @@ function FileUploader({ onFileUpload }: { onFileUpload: (files: File[]) => void 
       )}>
         {isDragging ? (
           <Upload className="w-5 h-5 animate-bounce" />
+        ) : isUploading ? (
+          <div className="w-5 h-5 border-2 border-zinc-400 border-t-transparent rounded-full animate-spin" />
         ) : (
           <Plus className="w-5 h-5 group-hover:text-zinc-300" />
         )}
       </div>
       <span className="text-xs font-medium">
-        {isDragging ? "여기에 놓으세요" : "파일 추가하기"}
+        {isDragging ? "여기에 놓으세요" : isUploading ? "업로드 중..." : "파일 추가하기"}
       </span>
     </div>
   );
 }
 
 // Collapsible Drop Zone Component
-function CollapsibleDropZone({ 
-  droppedInsights, 
-  onRemove 
-}: { 
-  droppedInsights: VisionItem[]; 
+function CollapsibleDropZone({
+  droppedInsights,
+  onRemove
+}: {
+  droppedInsights: VisionItem[];
   onRemove: (id: string) => void;
 }) {
   const [isExpanded, setIsExpanded] = useState(true);
@@ -204,7 +304,7 @@ function CollapsibleDropZone({
           ) : (
             <div className="space-y-2">
               {droppedInsights.map((item) => (
-                <div 
+                <div
                   key={item.id}
                   className="relative group/item bg-zinc-800/60 border border-indigo-500/30 rounded-lg p-3 hover:bg-zinc-800/80 transition-colors"
                 >
@@ -226,18 +326,32 @@ function CollapsibleDropZone({
   );
 }
 
-export default function WorkspaceClient() {
-  const [visionItems, setVisionItems] = useState(INITIAL_VISION_DATA);
+export default function WorkspaceClient({
+  prospectId,
+  prospect,
+  visionData,
+  initialUserAssets,
+  initialGeneratedEmails,
+}: WorkspaceClientProps) {
+  // Vision 데이터를 VisionItem으로 변환
+  const initialVisionItems = visionDataToItems(visionData);
+
+  // User Assets를 VisionItem으로 변환
+  const initialAssetItems = initialUserAssets.map(userAssetToVisionItem);
+
+  const [visionItems, setVisionItems] = useState<VisionItem[]>([
+    ...initialVisionItems,
+    ...initialAssetItems,
+  ]);
   const [draggedItem, setDraggedItem] = useState<VisionItem | null>(null);
   const [droppedInsights, setDroppedInsights] = useState<VisionItem[]>([]);
   const [mounted, setMounted] = useState(false);
   const [activeStep, setActiveStep] = useState(1);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  if (!mounted) return null;
 
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
@@ -257,7 +371,7 @@ export default function WorkspaceClient() {
   };
 
   const updateVisionItem = (id: string, newContent: string) => {
-    setVisionItems(prev => prev.map(item => 
+    setVisionItems(prev => prev.map(item =>
       item.id === id ? { ...item, content: newContent } : item
     ));
   };
@@ -270,27 +384,52 @@ export default function WorkspaceClient() {
     }
   };
 
-  const handleFileUpload = (files: File[]) => {
-    const newItems: VisionItem[] = files.map(file => ({
-      id: `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      label: '내 소재 파일',
-      content: file.name,
-      type: 'file',
-      isUserAsset: true
-    }));
-    setVisionItems(prev => [...prev, ...newItems]);
-  };
+  const handleFileUpload = useCallback(async (files: File[]) => {
+    setIsUploading(true);
+
+    try {
+      // 각 파일에 대해 처리
+      for (const file of files) {
+        // TODO: Supabase Storage에 파일 업로드 (현재는 로컬 미리보기만)
+        // 실제 구현 시에는 클라이언트에서 Storage에 업로드 후 URL을 받아와야 함
+
+        // 임시: 로컬 파일로 VisionItem 생성
+        const newItem: VisionItem = {
+          id: `local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          label: `내 소재 (${file.type.startsWith('image') ? '이미지' : '파일'})`,
+          content: file.name,
+          type: file.type.startsWith('image') ? 'image' : 'file',
+          isUserAsset: true,
+        };
+
+        setVisionItems(prev => [...prev, newItem]);
+
+        // Server Action으로 메타데이터 저장 (Storage 업로드 후)
+        // const { data: asset, error } = await createUserAsset({
+        //   file_type: file.type,
+        //   file_url: uploadedUrl,
+        //   file_name: file.name,
+        // });
+      }
+    } catch (error) {
+      console.error('파일 업로드 실패:', error);
+    } finally {
+      setIsUploading(false);
+    }
+  }, []);
+
+  if (!mounted) return null;
 
   return (
-    <DndContext 
+    <DndContext
       id="workspace-dnd-context"
-      collisionDetection={closestCenter} 
-      onDragStart={handleDragStart} 
+      collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
       {/* Outer Shell: No Global Scroll */}
       <div className="flex h-screen w-screen bg-zinc-950 overflow-hidden text-zinc-100">
-        
+
         {/* Left Sidebar: Fixed Width */}
         <aside className="w-[350px] flex-none border-r border-zinc-800/50 flex flex-col bg-zinc-900/20 overflow-y-auto custom-scrollbar">
           <div className="h-full flex flex-col">
@@ -300,7 +439,7 @@ export default function WorkspaceClient() {
                 <span className="text-sm font-medium text-zinc-200">소재 라이브러리</span>
               </div>
               <Badge variant="outline" className="text-xs border-zinc-700 text-zinc-400 font-mono">
-                AI 분석완료
+                {prospect.store_name || prospect.name}
               </Badge>
             </div>
 
@@ -308,20 +447,22 @@ export default function WorkspaceClient() {
             <ScrollArea className="flex-1 px-5 py-6">
               <div className="space-y-8">
                 {/* Vision Analysis */}
-                <section>
-                  <h3 className="text-sm font-bold text-zinc-400 tracking-wider mb-4 pl-1 uppercase">
-                    크리에이티브 인사이트
-                  </h3>
-                  <div className="space-y-3">
-                    {visionItems.filter(i => !i.isUserAsset).map((item) => (
-                      <DraggableStrategyChip 
-                        key={item.id} 
-                        item={item} 
-                        onUpdate={updateVisionItem} 
-                      />
-                    ))}
-                  </div>
-                </section>
+                {visionItems.filter(i => !i.isUserAsset).length > 0 && (
+                  <section>
+                    <h3 className="text-sm font-bold text-zinc-400 tracking-wider mb-4 pl-1 uppercase">
+                      크리에이티브 인사이트
+                    </h3>
+                    <div className="space-y-3">
+                      {visionItems.filter(i => !i.isUserAsset).map((item) => (
+                        <DraggableStrategyChip
+                          key={item.id}
+                          item={item}
+                          onUpdate={updateVisionItem}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                )}
 
                 {/* User Assets */}
                 <section>
@@ -330,19 +471,19 @@ export default function WorkspaceClient() {
                   </h3>
                   <div className="space-y-3">
                     {visionItems.filter(i => i.isUserAsset).map((item) => (
-                      <DraggableStrategyChip 
-                        key={item.id} 
-                        item={item} 
-                        onUpdate={updateVisionItem} 
+                      <DraggableStrategyChip
+                        key={item.id}
+                        item={item}
+                        onUpdate={updateVisionItem}
                       />
                     ))}
-                    <FileUploader onFileUpload={handleFileUpload} />
+                    <FileUploader onFileUpload={handleFileUpload} isUploading={isUploading} />
                   </div>
                 </section>
 
                 {/* Drop Zone Section */}
                 <section>
-                  <CollapsibleDropZone 
+                  <CollapsibleDropZone
                     droppedInsights={droppedInsights}
                     onRemove={removeFromDropZone}
                   />
@@ -355,17 +496,19 @@ export default function WorkspaceClient() {
         {/* Center Stage: Takes ALL remaining space */}
         {/* min-w-0 is CRITICAL to prevent flex collapse */}
         <main className="flex-1 min-w-0 flex flex-col relative bg-zinc-950">
-          <SequencePlaylist 
+          <SequencePlaylist
             droppedInsights={droppedInsights}
             onRemove={removeFromDropZone}
             currentStep={activeStep}
+            generatedEmails={initialGeneratedEmails}
+            prospect={prospect}
           />
         </main>
 
         {/* Right Sidebar: Fixed Width */}
         <aside className="w-[300px] flex-none border-l border-zinc-800/50 bg-zinc-900/20 overflow-y-auto custom-scrollbar">
-          <StrategySidebar 
-            currentStep={activeStep} 
+          <StrategySidebar
+            currentStep={activeStep}
             onStepChange={setActiveStep}
           />
         </aside>

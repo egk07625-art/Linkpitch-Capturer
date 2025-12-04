@@ -1,6 +1,6 @@
 /**
  * @file app/app/page.tsx
- * @description 대시보드 페이지 - 6-KPI Premium Layout with Clean Tooltips
+ * @description 대시보드 페이지 - 6-KPI Premium Layout with Real Data
  */
 
 import { Users, Send, Activity, Timer, PieChart, Flame } from "lucide-react";
@@ -11,7 +11,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
+import { cn, formatDuration } from "@/lib/utils";
+import { getDashboardKPIs } from "@/actions/dashboard";
+import { getProspects } from "@/actions/prospects";
 
 interface KPICardProps {
   title: string;
@@ -78,61 +80,76 @@ function KPICard({
   );
 }
 
-const kpiCards: KPICardProps[] = [
-  {
-    title: "총 고객사",
-    description: "등록된 모든 잠재 고객사의 수입니다.",
-    value: 12,
-    icon: Users,
-    theme: "indigo",
-  },
-  {
-    title: "발송 완료",
-    description: "생성 후 실제로 발송된 메일의 총합입니다.",
-    value: 45,
-    icon: Send,
-    theme: "sky",
-  },
-  {
-    title: "리포트 완독률",
-    description: "리포트의 80% 지점까지 스크롤한 고객의 비율입니다.",
-    value: "68%",
-    icon: Activity,
-    theme: "teal",
-  },
-  {
-    title: "평균 열람 시간",
-    description: "고객이 리포트 페이지에 머무른 평균 시간입니다.",
-    value: "",
-    valueComponent: (
-      <div className="flex items-baseline gap-0.5">
-        <span className="text-2xl xl:text-3xl font-bold text-zinc-50">3</span>
-        <span className="text-xs font-medium text-zinc-500 mr-1">m</span>
-        <span className="text-2xl xl:text-3xl font-bold text-zinc-50">20</span>
-        <span className="text-xs font-medium text-zinc-500">s</span>
-      </div>
-    ),
-    icon: Timer,
-    theme: "amber",
-  },
-  {
-    title: "리드 전환율",
-    description: "전체 고객 중 긍정적 반응(Warm/Hot)으로 전환된 비율입니다.",
-    value: "12.5%",
-    icon: PieChart,
-    theme: "violet",
-  },
-  {
-    title: "당장 연락할 곳",
-    description: "CRM 상태가 'Hot'인 최우선 대응 고객입니다.",
-    value: 3,
-    icon: Flame,
-    theme: "rose",
-    pulse: true,
-  },
-];
+function DurationDisplay({ seconds }: { seconds: number }) {
+  const { minutes, seconds: secs } = formatDuration(seconds);
+  return (
+    <div className="flex items-baseline gap-0.5">
+      <span className="text-2xl xl:text-3xl font-bold text-zinc-50">{minutes}</span>
+      <span className="text-xs font-medium text-zinc-500 mr-1">m</span>
+      <span className="text-2xl xl:text-3xl font-bold text-zinc-50">{secs}</span>
+      <span className="text-xs font-medium text-zinc-500">s</span>
+    </div>
+  );
+}
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  // 병렬로 데이터 조회
+  const [kpiResult, prospectsResult] = await Promise.all([
+    getDashboardKPIs(),
+    getProspects(),
+  ]);
+
+  const kpis = kpiResult.data;
+  const prospects = prospectsResult.data || [];
+
+  // KPI 카드 데이터 구성
+  const kpiCards: KPICardProps[] = [
+    {
+      title: "총 고객사",
+      description: "등록된 모든 잠재 고객사의 수입니다.",
+      value: kpis?.totalProspects ?? 0,
+      icon: Users,
+      theme: "indigo",
+    },
+    {
+      title: "발송 완료",
+      description: "생성 후 실제로 발송된 메일의 총합입니다.",
+      value: kpis?.sentEmails ?? 0,
+      icon: Send,
+      theme: "sky",
+    },
+    {
+      title: "리포트 완독률",
+      description: "리포트의 80% 지점까지 스크롤한 고객의 비율입니다.",
+      value: `${kpis?.completionRate ?? 0}%`,
+      icon: Activity,
+      theme: "teal",
+    },
+    {
+      title: "평균 열람 시간",
+      description: "고객이 리포트 페이지에 머무른 평균 시간입니다.",
+      value: "",
+      valueComponent: <DurationDisplay seconds={kpis?.avgDurationSeconds ?? 0} />,
+      icon: Timer,
+      theme: "amber",
+    },
+    {
+      title: "리드 전환율",
+      description: "전체 고객 중 긍정적 반응(Warm/Hot)으로 전환된 비율입니다.",
+      value: `${kpis?.conversionRate ?? 0}%`,
+      icon: PieChart,
+      theme: "violet",
+    },
+    {
+      title: "당장 연락할 곳",
+      description: "CRM 상태가 'Hot'인 최우선 대응 고객입니다.",
+      value: kpis?.hotLeads ?? 0,
+      icon: Flame,
+      theme: "rose",
+      pulse: (kpis?.hotLeads ?? 0) > 0,
+    },
+  ];
+
   return (
     <TooltipProvider delayDuration={200}>
       <div className="space-y-8">
@@ -149,7 +166,7 @@ export default function DashboardPage() {
           ))}
         </section>
 
-        <ProspectsTable />
+        <ProspectsTable prospects={prospects} />
       </div>
     </TooltipProvider>
   );
