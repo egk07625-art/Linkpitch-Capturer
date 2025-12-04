@@ -67,6 +67,7 @@ export interface GetProspectsOptions {
   search?: string; // 회사명, URL, 담당자 검색
   sort?: "name" | "created_at" | "last_activity_at";
   limit?: number;
+  offset?: number; // 페이지네이션을 위한 오프셋
 }
 
 /**
@@ -124,8 +125,10 @@ export async function getProspects(
     query = query.order("created_at", { ascending: false });
   }
 
-  // 제한
-  if (options?.limit) {
+  // 페이지네이션: offset과 limit 적용
+  if (options?.offset !== undefined && options?.limit) {
+    query = query.range(options.offset, options.offset + options.limit - 1);
+  } else if (options?.limit) {
     query = query.limit(options.limit);
   }
 
@@ -154,6 +157,75 @@ export async function getProspects(
       options,
     });
     // 에러를 다시 throw하여 상위에서 처리할 수 있도록
+    throw error;
+  }
+}
+
+/**
+ * Prospect 전체 개수 조회 (필터링/검색 조건 반영)
+ *
+ * @param options 조회 옵션 (필터, 검색 - limit, offset은 무시)
+ * @returns 전체 Prospect 개수
+ */
+export async function getProspectsCount(
+  options?: Omit<GetProspectsOptions, "limit" | "offset" | "sort">,
+): Promise<number> {
+  try {
+    const { userId: clerkId } = await auth();
+
+    if (!clerkId) {
+      console.error("getProspectsCount: No Clerk user ID");
+      throw new Error("Unauthorized: 사용자 인증이 필요합니다.");
+    }
+
+    console.log("getProspectsCount: Fetching count for Clerk ID:", clerkId);
+    const userUuid = await getSupabaseUserId(clerkId);
+    
+    // Service Role 클라이언트 사용 (RLS 우회)
+    const supabase = getServiceRoleClient();
+
+    let query = supabase
+      .from("prospects")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", userUuid);
+
+    // 상태 필터
+    if (options?.status) {
+      query = query.eq("crm_status", options.status);
+    }
+
+    // 검색 기능 (회사명, URL, 담당자 이름/이메일)
+    if (options?.search) {
+      const searchTerm = options.search;
+      query = query.or(
+        `name.ilike.%${searchTerm}%,url.ilike.%${searchTerm}%,contact_name.ilike.%${searchTerm}%,contact_email.ilike.%${searchTerm}%`,
+      );
+    }
+
+    const { count, error } = await query;
+
+    if (error) {
+      console.error("Prospect 개수 조회 실패:", {
+        error,
+        errorCode: error.code,
+        errorMessage: error.message,
+        errorDetails: error.details,
+        errorHint: error.hint,
+        userUuid,
+        options,
+      });
+      throw new Error(`Prospect 개수 조회 실패: ${error.message}`);
+    }
+
+    console.log("getProspectsCount: Successfully fetched count:", count || 0);
+    return count || 0;
+  } catch (error) {
+    console.error("getProspectsCount: Unexpected error:", {
+      error,
+      errorMessage: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      options,
+    });
     throw error;
   }
 }

@@ -12,6 +12,9 @@ import { getProspectsCampaignStats } from "@/actions/prospects";
 import { getProspects } from "@/app/actions/prospects";
 import { DashboardTemperature } from "@/components/dashboard/dashboard-temperature";
 
+// Dynamic rendering 설정 (auth()가 headers()를 사용하므로)
+export const dynamic = 'force-dynamic';
+
 export default async function DashboardPage() {
   // 병렬로 데이터 조회
   const [kpiResult, prospectsResult, pipelineResult, activityResult] =

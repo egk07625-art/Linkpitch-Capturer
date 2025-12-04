@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   Search,
@@ -39,6 +39,9 @@ interface ClientsUnifiedViewProps {
   prospects: Prospect[];
   campaignStats: Record<string, CampaignStats>;
   selectedClientId?: string;
+  totalCount: number;
+  currentPage: number;
+  itemsPerPage: number;
 }
 
 type FilterStatus = "All" | "Hot" | "Warm" | "Cold";
@@ -79,10 +82,35 @@ export default function ClientsUnifiedView({
   prospects,
   campaignStats,
   selectedClientId: _selectedClientId,
+  totalCount,
+  currentPage,
+  itemsPerPage,
 }: ClientsUnifiedViewProps) {
   const router = useRouter();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeFilter, setActiveFilter] = useState<FilterStatus>("All");
+  const searchParams = useSearchParams();
+  
+  // URL 파라미터에서 초기 상태 읽기
+  const urlStatus = searchParams.get("status");
+  const urlSearch = searchParams.get("search") || "";
+  
+  const [searchQuery, setSearchQuery] = useState(urlSearch);
+  const [activeFilter, setActiveFilter] = useState<FilterStatus>(
+    urlStatus && ["hot", "warm", "cold"].includes(urlStatus.toLowerCase())
+      ? (urlStatus.charAt(0).toUpperCase() + urlStatus.slice(1).toLowerCase()) as FilterStatus
+      : "All"
+  );
+
+  // URL 파라미터 변경 시 상태 동기화
+  useEffect(() => {
+    const urlStatus = searchParams.get("status");
+    const urlSearch = searchParams.get("search") || "";
+    setSearchQuery(urlSearch);
+    setActiveFilter(
+      urlStatus && ["hot", "warm", "cold"].includes(urlStatus.toLowerCase())
+        ? (urlStatus.charAt(0).toUpperCase() + urlStatus.slice(1).toLowerCase()) as FilterStatus
+        : "All"
+    );
+  }, [searchParams]);
   
   // 상태 관리 (이메일 히스토리, 메모 등)
   const [emailHistoryOpen, setEmailHistoryOpen] = useState(false);
@@ -106,32 +134,15 @@ export default function ClientsUnifiedView({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedClientIdForDelete, setSelectedClientIdForDelete] = useState<string | null>(null);
 
-  // 필터링 및 검색
-  const filteredProspects = prospects.filter((prospect) => {
-    // 필터 적용
-    const matchesFilter =
-      activeFilter === "All" ||
-      prospect.crm_status.toUpperCase() === activeFilter.toUpperCase();
-    
-    // 검색 적용
-    const matchesSearch =
-      searchQuery === "" ||
-      prospect.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      prospect.store_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      prospect.contact_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      prospect.url?.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    return matchesFilter && matchesSearch;
-  });
-
+  // 서버에서 이미 필터링/검색된 데이터를 받아오므로 클라이언트 사이드 필터링 제거
   // 정렬: Hot > Warm > Cold 순서
-  const sortedProspects = [...filteredProspects].sort((a, b) => {
+  const sortedProspects = [...prospects].sort((a, b) => {
     const statusOrder: Record<CRMStatus, number> = { hot: 0, warm: 1, cold: 2 };
     return statusOrder[a.crm_status] - statusOrder[b.crm_status];
   });
 
-  // 통계 계산
-  const totalCount = prospects.length;
+  // 통계 계산 (현재 페이지의 데이터만 사용)
+  // totalCount는 props로 전달받음
   const hotCount = prospects.filter((p) => p.crm_status === "hot").length;
   const warmCount = prospects.filter((p) => p.crm_status === "warm").length;
   const coldCount = prospects.filter((p) => p.crm_status === "cold").length;
@@ -294,7 +305,19 @@ export default function ClientsUnifiedView({
             type="text"
             placeholder="회사명, 담당자, 이메일 검색..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              const value = e.target.value;
+              setSearchQuery(value);
+              // 검색 변경 시 URL 업데이트 및 페이지 리셋
+              const params = new URLSearchParams(searchParams.toString());
+              if (value) {
+                params.set("search", value);
+              } else {
+                params.delete("search");
+              }
+              params.delete("page"); // 페이지를 1로 리셋
+              router.push(`/prospects?${params.toString()}`);
+            }}
             className="block w-full pl-12 pr-4 py-3.5 bg-[#0A0A0C] border border-[#333] rounded-2xl text-base text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 transition-all"
           />
         </div>
@@ -304,9 +327,15 @@ export default function ClientsUnifiedView({
           {/* 필터 그룹 */}
           <div className="flex p-1.5 bg-[#0A0A0C] border border-[#333] rounded-2xl">
             <button
-              onClick={() => setActiveFilter("All")}
+              onClick={() => {
+                setActiveFilter("All");
+                const params = new URLSearchParams(searchParams.toString());
+                params.delete("status");
+                params.delete("page"); // 페이지를 1로 리셋
+                router.push(`/prospects?${params.toString()}`);
+              }}
               className={cn(
-                "px-5 py-2 text-sm font-medium rounded-xl transition-colors",
+                "px-6 py-2.5 text-base font-semibold rounded-xl transition-colors",
                 activeFilter === "All"
                   ? "text-white bg-[#1C1C1E] shadow-sm font-bold border border-[#333]"
                   : "text-zinc-500 hover:text-zinc-300"
@@ -315,9 +344,15 @@ export default function ClientsUnifiedView({
               All
             </button>
             <button
-              onClick={() => setActiveFilter("Hot")}
+              onClick={() => {
+                setActiveFilter("Hot");
+                const params = new URLSearchParams(searchParams.toString());
+                params.set("status", "hot");
+                params.delete("page"); // 페이지를 1로 리셋
+                router.push(`/prospects?${params.toString()}`);
+              }}
               className={cn(
-                "px-5 py-2 text-sm font-medium rounded-xl transition-colors",
+                "px-6 py-2.5 text-base font-semibold rounded-xl transition-colors",
                 activeFilter === "Hot"
                   ? "text-white bg-[#1C1C1E] shadow-sm font-bold border border-[#333]"
                   : "text-zinc-500 hover:text-zinc-300"
@@ -326,9 +361,15 @@ export default function ClientsUnifiedView({
               Hot
             </button>
             <button
-              onClick={() => setActiveFilter("Warm")}
+              onClick={() => {
+                setActiveFilter("Warm");
+                const params = new URLSearchParams(searchParams.toString());
+                params.set("status", "warm");
+                params.delete("page"); // 페이지를 1로 리셋
+                router.push(`/prospects?${params.toString()}`);
+              }}
               className={cn(
-                "px-5 py-2 text-sm font-medium rounded-xl transition-colors",
+                "px-6 py-2.5 text-base font-semibold rounded-xl transition-colors",
                 activeFilter === "Warm"
                   ? "text-white bg-[#1C1C1E] shadow-sm font-bold border border-[#333]"
                   : "text-zinc-500 hover:text-zinc-300"
@@ -337,9 +378,15 @@ export default function ClientsUnifiedView({
               Warm
             </button>
             <button
-              onClick={() => setActiveFilter("Cold")}
+              onClick={() => {
+                setActiveFilter("Cold");
+                const params = new URLSearchParams(searchParams.toString());
+                params.set("status", "cold");
+                params.delete("page"); // 페이지를 1로 리셋
+                router.push(`/prospects?${params.toString()}`);
+              }}
               className={cn(
-                "px-5 py-2 text-sm font-medium rounded-xl transition-colors",
+                "px-6 py-2.5 text-base font-semibold rounded-xl transition-colors",
                 activeFilter === "Cold"
                   ? "text-white bg-[#1C1C1E] shadow-sm font-bold border border-[#333]"
                   : "text-zinc-500 hover:text-zinc-300"
@@ -352,7 +399,7 @@ export default function ClientsUnifiedView({
           {/* 추가 버튼 (Primary) */}
           <Link
             href="/prospects/new"
-            className="h-[50px] px-6 bg-white text-black font-bold text-base rounded-2xl hover:bg-zinc-200 transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(255,255,255,0.1)]"
+            className="px-6 py-2.5 bg-white text-black font-bold text-base rounded-2xl hover:bg-zinc-200 transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(255,255,255,0.1)]"
           >
             <Plus className="w-5 h-5" />
             <span>Add Client</span>
@@ -363,7 +410,7 @@ export default function ClientsUnifiedView({
       {/* 테이블 영역 */}
       <div className="flex-1 bg-[#161618] min-h-[500px] flex flex-col">
         {/* 테이블 헤더 */}
-        <div className="grid grid-cols-12 gap-6 px-10 py-5 border-b border-[#2C2C2E] bg-[#1C1C1E]/50 text-sm font-semibold text-zinc-500 uppercase tracking-wider whitespace-nowrap shrink-0">
+        <div className="grid grid-cols-12 gap-6 px-10 py-6 border-b border-[#2C2C2E] bg-[#1C1C1E]/50 text-base font-bold text-zinc-400 uppercase tracking-wider whitespace-nowrap shrink-0">
           <div className="col-span-3 pl-2 flex items-center gap-2 cursor-pointer hover:text-zinc-300">
             회사 정보 <ArrowUpDown className="w-3 h-3" />
           </div>
@@ -450,16 +497,19 @@ export default function ClientsUnifiedView({
                   </div>
 
                   {/* 3. 연락처 (2칸) */}
-                  <div className="col-span-2 flex flex-col justify-center overflow-hidden gap-1">
+                  <div 
+                    className="col-span-2 flex flex-col justify-center overflow-hidden gap-1 select-text"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     {prospect.contact_email ? (
-                      <span className="text-base text-zinc-300 font-mono truncate hover:text-white transition-colors cursor-pointer">
+                      <span className="text-base text-zinc-300 font-mono truncate hover:text-white transition-colors cursor-text select-all">
                         {prospect.contact_email}
                       </span>
                     ) : (
                       <span className="text-base text-zinc-500">-</span>
                     )}
                     {prospect.contact_phone && (
-                      <span className="text-sm text-zinc-600 font-mono truncate">
+                      <span className="text-sm text-zinc-600 font-mono truncate cursor-text select-all">
                         {prospect.contact_phone}
                       </span>
                     )}
@@ -580,15 +630,128 @@ export default function ClientsUnifiedView({
         </div>
       </div>
 
-      {/* 하단 정보 (Pagination) */}
-      <div className="px-10 py-5 border-t border-[#2C2C2E] bg-[#161618] flex justify-between items-center shrink-0 text-sm text-zinc-500">
-        <span>Showing {sortedProspects.length} of {totalCount} clients</span>
-        <div className="flex gap-2">
-          <span>Hot: {hotCount}</span>
-          <span>Warm: {warmCount}</span>
-          <span>Cold: {coldCount}</span>
-        </div>
-      </div>
+      {/* 하단 페이지네이션 (Apple Style) */}
+      {totalCount > 0 && (() => {
+        const totalPages = Math.ceil(totalCount / itemsPerPage);
+        const startIndex = (currentPage - 1) * itemsPerPage + 1;
+        const endIndex = Math.min(currentPage * itemsPerPage, totalCount);
+        const isFirstPage = currentPage === 1;
+        const isLastPage = currentPage === totalPages;
+
+        // 페이지 번호 버튼 생성 로직
+        const getPageNumbers = () => {
+          const pages: (number | string)[] = [];
+          
+          if (totalPages <= 7) {
+            // 페이지가 7개 이하일 때는 모두 표시
+            for (let i = 1; i <= totalPages; i++) {
+              pages.push(i);
+            }
+          } else {
+            // 첫 페이지
+            pages.push(1);
+            
+            if (currentPage <= 3) {
+              // 현재 페이지가 앞쪽에 있을 때
+              for (let i = 2; i <= 4; i++) {
+                pages.push(i);
+              }
+              pages.push("...");
+              pages.push(totalPages);
+            } else if (currentPage >= totalPages - 2) {
+              // 현재 페이지가 뒤쪽에 있을 때
+              pages.push("...");
+              for (let i = totalPages - 3; i <= totalPages; i++) {
+                pages.push(i);
+              }
+            } else {
+              // 현재 페이지가 중간에 있을 때
+              pages.push("...");
+              for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+                pages.push(i);
+              }
+              pages.push("...");
+              pages.push(totalPages);
+            }
+          }
+          
+          return pages;
+        };
+
+        const pageNumbers = getPageNumbers();
+
+        const handlePageChange = (page: number) => {
+          const params = new URLSearchParams(searchParams.toString());
+          if (page === 1) {
+            params.delete("page");
+          } else {
+            params.set("page", page.toString());
+          }
+          router.push(`/prospects?${params.toString()}`);
+        };
+
+        return (
+          <div className="px-8 py-5 border-t border-[#333] bg-[#161618] flex flex-col md:flex-row gap-4 justify-between items-center select-none">
+            {/* 좌측: 정보 표시 */}
+            <span className="text-sm font-medium text-zinc-500">
+              Showing <span className="text-zinc-200">{startIndex}</span> to <span className="text-zinc-200">{endIndex}</span> of <span className="text-zinc-200">{totalCount}</span> clients
+            </span>
+
+            {/* 우측: 페이지 컨트롤 */}
+            <div className="flex items-center gap-1">
+              {/* Previous 버튼 */}
+              <button
+                onClick={() => !isFirstPage && handlePageChange(currentPage - 1)}
+                disabled={isFirstPage}
+                className="px-3 py-2 text-sm font-medium text-zinc-500 rounded-lg hover:bg-[#2C2C2E] hover:text-zinc-300 disabled:opacity-50 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
+              >
+                Previous
+              </button>
+
+              {/* 숫자 버튼 그룹 */}
+              <div className="flex items-center gap-1 mx-2">
+                {pageNumbers.map((page, index) => {
+                  if (page === "...") {
+                    return (
+                      <span key={`ellipsis-${index}`} className="w-9 h-9 flex items-center justify-center text-zinc-600">
+                        ...
+                      </span>
+                    );
+                  }
+                  
+                  const pageNum = page as number;
+                  const isActive = pageNum === currentPage;
+                  
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => handlePageChange(pageNum)}
+                      className={`
+                        w-9 h-9 flex items-center justify-center text-sm rounded-lg transition-all
+                        ${isActive
+                          ? "text-black bg-white shadow-lg shadow-white/10 scale-105 font-bold"
+                          : "font-medium text-zinc-500 hover:bg-[#2C2C2E] hover:text-zinc-300"
+                        }
+                      `}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Next 버튼 */}
+              <button
+                onClick={() => !isLastPage && handlePageChange(currentPage + 1)}
+                disabled={isLastPage}
+                className="px-3 py-2 text-sm font-medium text-zinc-400 rounded-lg hover:bg-[#2C2C2E] hover:text-white disabled:opacity-50 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* 이메일 히스토리 Sheet */}
       <Sheet open={emailHistoryOpen} onOpenChange={setEmailHistoryOpen}>

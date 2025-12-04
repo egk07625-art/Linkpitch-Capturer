@@ -5,7 +5,7 @@
  * 대시보드와 완벽하게 동일한 "Family Look"을 적용한 통합 뷰
  */
 
-import { getProspects, type GetProspectsOptions } from "@/app/actions/prospects";
+import { getProspects, getProspectsCount, type GetProspectsOptions } from "@/app/actions/prospects";
 import { getProspectsCampaignStats } from "@/actions/prospects";
 import ClientsUnifiedView from "@/components/clients/clients-unified-view";
 import type { Prospect } from "@/types/prospect";
@@ -16,6 +16,7 @@ interface ProspectsPageProps {
     search?: string;
     sort?: string;
     id?: string;
+    page?: string;
   }>;
 }
 
@@ -26,6 +27,11 @@ export default async function ProspectsPage({
   let prospects: Prospect[] = [];
   let errorMessage: string | null = null;
 
+  // 페이지네이션 설정
+  const itemsPerPage = 20;
+  const currentPage = Math.max(1, parseInt(params.page || "1", 10) || 1);
+  const offset = (currentPage - 1) * itemsPerPage;
+
   const options: GetProspectsOptions = {};
   if (params.status && ["hot", "warm", "cold"].includes(params.status)) {
     options.status = params.status as "hot" | "warm" | "cold";
@@ -35,6 +41,34 @@ export default async function ProspectsPage({
   }
   if (params.sort && ["name", "created_at", "last_activity_at"].includes(params.sort)) {
     options.sort = params.sort as "name" | "created_at" | "last_activity_at";
+  }
+  
+  // 페이지네이션 옵션 추가
+  options.limit = itemsPerPage;
+  options.offset = offset;
+
+  // 전체 개수 조회 (필터링/검색 조건 반영)
+  let totalCount = 0;
+  try {
+    totalCount = await getProspectsCount({
+      status: options.status,
+      search: options.search,
+    });
+  } catch (error) {
+    console.error("Failed to fetch prospects count:", {
+      error,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
+    // 개수 조회 실패 시에도 계속 진행
+    totalCount = 0;
+  }
+
+  // 페이지 범위 검증 및 조정
+  const totalPages = Math.max(1, Math.ceil(totalCount / itemsPerPage));
+  const validPage = Math.max(1, Math.min(currentPage, totalPages));
+  if (validPage !== currentPage) {
+    // 유효하지 않은 페이지 번호인 경우 조정된 값으로 재계산
+    options.offset = (validPage - 1) * itemsPerPage;
   }
 
   try {
@@ -104,6 +138,9 @@ export default async function ProspectsPage({
             prospects={prospects}
             campaignStats={campaignStats}
             selectedClientId={selectedId}
+            totalCount={totalCount}
+            currentPage={validPage}
+            itemsPerPage={itemsPerPage}
           />
         </div>
       </div>
