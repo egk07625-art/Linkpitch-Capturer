@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ExternalLink, MoreHorizontal } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { ko } from "date-fns/locale";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,40 +17,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import type { Prospect, CRMStatus } from "@/types/prospect";
 
-interface Prospect {
-  id: string;
-  company: string;
-  status: "hot" | "warm" | "cold";
-  url: string;
-  lastActive: string;
+interface ProspectsTableProps {
+  prospects: Prospect[];
 }
 
-const DUMMY_PROSPECTS: Prospect[] = [
-  {
-    id: "1",
-    company: "GrowUp",
-    status: "hot",
-    url: "https://growup.kr",
-    lastActive: "2 hours ago",
-  },
-  {
-    id: "2",
-    company: "BrandX",
-    status: "warm",
-    url: "https://brandx.com",
-    lastActive: "1 day ago",
-  },
-  {
-    id: "3",
-    company: "StartA",
-    status: "cold",
-    url: "https://starta.io",
-    lastActive: "3 days ago",
-  },
-];
-
-const statusConfig = {
+const statusConfig: Record<CRMStatus, { label: string; className: string }> = {
   hot: {
     label: "Hot",
     className: "bg-rose-500/10 text-rose-500 border-rose-500/20",
@@ -67,10 +42,28 @@ function getInitial(name: string): string {
   return name.charAt(0).toUpperCase();
 }
 
-export function ProspectsTable() {
+function formatLastActive(dateString: string | null | undefined): string {
+  if (!dateString) return "-";
+  try {
+    return formatDistanceToNow(new Date(dateString), {
+      addSuffix: true,
+      locale: ko,
+    });
+  } catch {
+    return "-";
+  }
+}
+
+export function ProspectsTable({ prospects }: ProspectsTableProps) {
   const router = useRouter();
 
-  if (DUMMY_PROSPECTS.length === 0) {
+  // HOT 고객을 최상단에 정렬
+  const sortedProspects = [...prospects].sort((a, b) => {
+    const statusOrder: Record<CRMStatus, number> = { hot: 0, warm: 1, cold: 2 };
+    return statusOrder[a.crm_status] - statusOrder[b.crm_status];
+  });
+
+  if (sortedProspects.length === 0) {
     return (
       <section className="rounded-lg border border-white/[0.03] bg-zinc-900/30 backdrop-blur-md overflow-hidden">
         <div className="flex flex-col items-center justify-center gap-4 py-16 px-6">
@@ -79,7 +72,7 @@ export function ProspectsTable() {
             <div className="relative space-y-3 text-center">
               <p className="text-sm text-zinc-400">분석할 고객사가 없습니다</p>
               <Button asChild className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500">
-                <Link href="/prospects/new">분석 시작하기</Link>
+                <Link href="/app/create">분석 시작하기</Link>
               </Button>
             </div>
           </div>
@@ -101,21 +94,23 @@ export function ProspectsTable() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {DUMMY_PROSPECTS.map((prospect) => {
-            const statusStyle = statusConfig[prospect.status];
+          {sortedProspects.map((prospect) => {
+            const statusStyle = statusConfig[prospect.crm_status];
+            const displayUrl = prospect.url || "-";
+            const displayName = prospect.store_name || prospect.name;
+
             return (
               <TableRow
                 key={prospect.id}
                 className="border-zinc-800/50 hover:bg-zinc-800/30"
               >
-                <TableCell 
+                <TableCell
                   className="font-medium text-zinc-50 cursor-pointer"
                   onClick={() => {
-                    console.log('[ProspectsTable] Navigating to:', `/prospects/${prospect.id}/mix`);
                     router.push(`/prospects/${prospect.id}/mix`);
                   }}
                 >
-                  <Link 
+                  <Link
                     href={`/prospects/${prospect.id}/mix`}
                     className="flex items-center gap-3 hover:text-indigo-400 transition-colors"
                     onClick={(e) => {
@@ -123,9 +118,14 @@ export function ProspectsTable() {
                     }}
                   >
                     <div className="flex items-center justify-center size-8 rounded-full bg-zinc-800/80 text-zinc-300 text-sm font-semibold">
-                      {getInitial(prospect.company)}
+                      {getInitial(displayName)}
                     </div>
-                    <span>{prospect.company}</span>
+                    <div className="flex flex-col">
+                      <span>{displayName}</span>
+                      {prospect.category && (
+                        <span className="text-xs text-zinc-500">{prospect.category}</span>
+                      )}
+                    </div>
                   </Link>
                 </TableCell>
                 <TableCell>
@@ -137,25 +137,29 @@ export function ProspectsTable() {
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  <a
-                    href={prospect.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-sm text-zinc-400 hover:text-zinc-300 transition-colors"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <ExternalLink className="h-3.5 w-3.5" />
-                    <span className="max-w-[200px] truncate">
-                      {prospect.url}
-                    </span>
-                  </a>
+                  {prospect.url ? (
+                    <a
+                      href={prospect.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-sm text-zinc-400 hover:text-zinc-300 transition-colors"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      <span className="max-w-[200px] truncate">
+                        {displayUrl}
+                      </span>
+                    </a>
+                  ) : (
+                    <span className="text-zinc-500">-</span>
+                  )}
                 </TableCell>
                 <TableCell className="text-zinc-400 text-sm">
-                  {prospect.lastActive}
+                  {formatLastActive(prospect.last_activity_at)}
                 </TableCell>
                 <TableCell>
-                  <Button 
-                    variant="ghost" 
+                  <Button
+                    variant="ghost"
                     size="sm"
                     onClick={(e) => {
                       e.preventDefault();
