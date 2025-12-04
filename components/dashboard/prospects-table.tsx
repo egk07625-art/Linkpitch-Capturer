@@ -21,6 +21,9 @@ import type { Prospect, CRMStatus } from "@/types/prospect";
 
 interface ProspectsTableProps {
   prospects: Prospect[];
+  filterStatus?: "hot" | "warm" | "all";
+  limit?: number;
+  showViewAll?: boolean;
 }
 
 const statusConfig: Record<CRMStatus, { label: string; className: string }> = {
@@ -54,24 +57,44 @@ function formatLastActive(dateString: string | null | undefined): string {
   }
 }
 
-export function ProspectsTable({ prospects }: ProspectsTableProps) {
+export function ProspectsTable({
+  prospects,
+  filterStatus,
+  limit,
+  showViewAll = true,
+}: ProspectsTableProps) {
   const router = useRouter();
 
+  // 필터링 적용
+  let filteredProspects = [...prospects];
+  if (filterStatus === "hot") {
+    filteredProspects = filteredProspects.filter((p) => p.crm_status === "hot");
+  } else if (filterStatus === "warm") {
+    filteredProspects = filteredProspects.filter(
+      (p) => p.crm_status === "warm" || p.crm_status === "hot",
+    );
+  }
+
   // HOT 고객을 최상단에 정렬
-  const sortedProspects = [...prospects].sort((a, b) => {
+  const sortedProspects = filteredProspects.sort((a, b) => {
     const statusOrder: Record<CRMStatus, number> = { hot: 0, warm: 1, cold: 2 };
     return statusOrder[a.crm_status] - statusOrder[b.crm_status];
   });
 
-  if (sortedProspects.length === 0) {
+  // 제한 적용
+  const displayedProspects = limit
+    ? sortedProspects.slice(0, limit)
+    : sortedProspects;
+
+  if (displayedProspects.length === 0) {
     return (
-      <section className="rounded-lg border border-white/[0.03] bg-zinc-900/30 backdrop-blur-md overflow-hidden">
+      <section className="glass-panel gradient-border rounded-xl overflow-hidden">
         <div className="flex flex-col items-center justify-center gap-4 py-16 px-6">
           <div className="relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/20 to-violet-500/20 blur-3xl" />
+            <div className="absolute inset-0 bg-gradient-to-r from-amber-500/20 to-yellow-500/20 blur-3xl" />
             <div className="relative space-y-3 text-center">
               <p className="text-sm text-zinc-400">분석할 고객사가 없습니다</p>
-              <Button asChild className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500">
+              <Button asChild className="premium-button shadow-lg shadow-amber-500/20">
                 <Link href="/app/create">분석 시작하기</Link>
               </Button>
             </div>
@@ -83,6 +106,26 @@ export function ProspectsTable({ prospects }: ProspectsTableProps) {
 
   return (
     <section className="rounded-lg border border-white/[0.03] bg-zinc-900/30 backdrop-blur-md overflow-hidden">
+      <div className="p-4 border-b border-zinc-800/50 flex items-center justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-zinc-50">
+            {filterStatus === "hot"
+              ? "당장 연락할 곳"
+              : filterStatus === "warm"
+                ? "우선순위 고객"
+                : "우선순위 고객"}
+          </h2>
+          <p className="text-xs text-zinc-400 mt-0.5">
+            {displayedProspects.length}개의 고객사
+            {filterStatus && ` (${filterStatus === "hot" ? "Hot" : "Hot/Warm"}만 표시)`}
+          </p>
+        </div>
+        {showViewAll && (
+          <Button asChild variant="outline" size="sm">
+            <Link href="/prospects">모두 보기</Link>
+          </Button>
+        )}
+      </div>
       <Table>
         <TableHeader>
           <TableRow className="border-zinc-800/50 hover:bg-transparent">
@@ -94,7 +137,7 @@ export function ProspectsTable({ prospects }: ProspectsTableProps) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {sortedProspects.map((prospect) => {
+          {displayedProspects.map((prospect) => {
             const statusStyle = statusConfig[prospect.crm_status];
             const displayUrl = prospect.url || "-";
             const displayName = prospect.store_name || prospect.name;
@@ -112,7 +155,7 @@ export function ProspectsTable({ prospects }: ProspectsTableProps) {
                 >
                   <Link
                     href={`/prospects/${prospect.id}/mix`}
-                    className="flex items-center gap-3 hover:text-indigo-400 transition-colors"
+                    className="flex items-center gap-3 hover:text-amber-400 transition-colors"
                     onClick={(e) => {
                       e.stopPropagation();
                     }}

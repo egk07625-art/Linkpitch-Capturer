@@ -48,8 +48,8 @@ This document is crafted to be directly usable by Cursor (or any developer), pro
 --text-tertiary: zinc-500   /* #71717a - Inactive/Meta */
 
 /* Interactive */
---interactive: indigo-500   /* #6366f1 - Primary Action */
---interactive-hover: indigo-400
+--interactive: amber-500   /* #f59e0b - Primary Action (Gold) */
+--interactive-hover: amber-400
 --destructive: rose-500     /* #f43f5e - Alert/Delete */
 ```
 
@@ -60,7 +60,7 @@ This document is crafted to be directly usable by Cursor (or any developer), pro
 | **CRM: Warm** | `bg-amber-500/10 text-amber-500` | 🔶 Warm Badge |
 | **CRM: Cold** | `bg-zinc-700 text-zinc-400` | ❄️ Cold Badge |
 | **Success State** | `bg-emerald-500/10 text-emerald-500` | ✓ Copied |
-| **Core Step (1,3,6,9)** | `text-indigo-400 border-l-2 border-indigo-500` | Emphasis Highlight |
+| **Core Step (1,3,6,9)** | `text-amber-400 border-l-2 border-amber-500` | Emphasis Highlight |
 
 ---
 
@@ -117,7 +117,7 @@ body {
 #### Primary Action
 ```tsx
 <button className="
-  bg-indigo-500 hover:bg-indigo-400 
+  bg-amber-500 hover:bg-amber-400 
   text-white font-medium
   px-4 py-2 rounded-sm
   transition-colors duration-150
@@ -172,7 +172,7 @@ body {
   className="
     w-full bg-transparent 
     border-0 border-b border-zinc-700 
-    focus:border-indigo-500 focus:outline-none
+    focus:border-amber-500 focus:outline-none
     text-zinc-50 placeholder:text-zinc-600
     py-2 text-sm
     transition-colors duration-150
@@ -187,7 +187,7 @@ body {
   className="
     w-full bg-zinc-900 
     border border-zinc-800 rounded-sm
-    focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50
+    focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50
     text-zinc-50 placeholder:text-zinc-600
     p-3 text-sm min-h-[120px]
     resize-none
@@ -215,7 +215,7 @@ body {
 <div className={cn(
   "border-2 border-dashed rounded-sm p-4 transition-all duration-150",
   isOver 
-    ? "border-indigo-500 bg-indigo-500/5" 
+    ? "border-amber-500 bg-amber-500/5" 
     : "border-zinc-800"
 )}>
   Drop Here

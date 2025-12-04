@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ExternalLink, MoreHorizontal, Plus } from "lucide-react";
+import { ExternalLink, Plus } from "lucide-react";
+import { ProspectActionsMenu } from "./prospect-actions-menu";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -69,10 +70,10 @@ export function ProspectsList({ prospects }: ProspectsListProps) {
       <section className="rounded-lg border border-white/[0.03] bg-zinc-900/30 backdrop-blur-md overflow-hidden">
         <div className="flex flex-col items-center justify-center gap-4 py-16 px-6">
           <div className="relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/20 to-violet-500/20 blur-3xl" />
+            <div className="absolute inset-0 bg-gradient-to-r from-amber-500/20 to-amber-600/20 blur-3xl" />
             <div className="relative space-y-3 text-center">
               <p className="text-sm text-zinc-400">등록된 고객사가 없습니다</p>
-              <Button asChild className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500">
+              <Button asChild className="bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400">
                 <Link href="/prospects/new">
                   <Plus className="mr-2 h-4 w-4" />
                   고객사 등록하기
@@ -91,7 +92,7 @@ export function ProspectsList({ prospects }: ProspectsListProps) {
         <p className="text-sm text-zinc-400">
           총 {prospects.length}개의 고객사
         </p>
-        <Button asChild size="sm" className="bg-indigo-600 hover:bg-indigo-500">
+        <Button asChild size="sm" className="bg-amber-600 hover:bg-amber-500">
           <Link href="/prospects/new">
             <Plus className="mr-2 h-4 w-4" />
             새로 등록
@@ -122,7 +123,7 @@ export function ProspectsList({ prospects }: ProspectsListProps) {
                 >
                   <Link 
                     href={`/prospects/${prospect.id}/mix`}
-                    className="flex items-center gap-3 hover:text-indigo-400 transition-colors"
+                    className="flex items-center gap-3 hover:text-amber-400 transition-colors"
                     onClick={(e) => {
                       e.stopPropagation();
                     }}
@@ -158,18 +159,8 @@ export function ProspectsList({ prospects }: ProspectsListProps) {
                 <TableCell className="text-zinc-400 text-sm">
                   {formatDate(prospect.last_activity_at)}
                 </TableCell>
-                <TableCell>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      // TODO: 드롭다운 메뉴 구현
-                    }}
-                  >
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
+                <TableCell onClick={(e) => e.stopPropagation()}>
+                  <ProspectActionsMenu prospect={prospect} />
                 </TableCell>
               </TableRow>
             );

@@ -67,7 +67,7 @@ export default function RootLayout({
       localization={customKoKR}
       appearance={{
         variables: {
-          colorPrimary: "#6366f1",
+          colorPrimary: "#f59e0b",
         },
       }}
     >

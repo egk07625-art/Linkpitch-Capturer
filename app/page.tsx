@@ -56,8 +56,8 @@ const InsightMixerCard = () => {
       <div className="w-1/3 border-r border-zinc-800 bg-zinc-900/80 p-4 space-y-3 backdrop-blur-sm">
         <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-4">Context Chips</div>
         
-        <div className="flex items-center gap-2 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-full text-zinc-300 text-sm cursor-grab active:cursor-grabbing hover:border-indigo-500/50 hover:bg-zinc-800/80 transition-colors group/chip">
-          <BarChart3 className="w-4 h-4 text-indigo-400" />
+        <div className="flex items-center gap-2 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-full text-zinc-300 text-sm cursor-grab active:cursor-grabbing hover:border-amber-500/50 hover:bg-zinc-800/80 transition-colors group/chip">
+          <BarChart3 className="w-4 h-4 text-amber-400" />
           <span className="tracking-normal">성과 그래프</span>
         </div>
         <div className="flex items-center gap-2 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-full text-zinc-300 text-sm cursor-grab active:cursor-grabbing hover:border-purple-500/50 hover:bg-zinc-800/80 transition-colors">
@@ -72,7 +72,7 @@ const InsightMixerCard = () => {
 
       {/* Right: Email Editor */}
       <div className="flex-1 bg-zinc-950 p-6 relative">
-        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 opacity-50" />
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-500 via-purple-500 to-pink-500 opacity-50" />
         
         {/* Floating Chip Animation */}
         <motion.div
@@ -115,7 +115,7 @@ const InsightMixerCard = () => {
                
                {/* Flash effect when chip drops */}
                <motion.div 
-                 className="h-24 w-full bg-indigo-900/10 border border-indigo-500/20 rounded-lg mt-4 p-3 flex items-center justify-center"
+                 className="h-24 w-full bg-amber-900/10 border border-amber-500/20 rounded-lg mt-4 p-3 flex items-center justify-center"
                  animate={{
                    backgroundColor: [
                      "rgba(49, 46, 129, 0.1)",
@@ -136,7 +136,7 @@ const InsightMixerCard = () => {
                    ease: "easeInOut"
                  }}
                >
-                  <span className="text-indigo-400/50 text-xs font-mono tracking-normal">Context: 타겟 분석 Integrated</span>
+                  <span className="text-amber-400/50 text-xs font-mono tracking-normal">Context: 타겟 분석 Integrated</span>
                </motion.div>
                <div className="h-2 w-1/2 bg-zinc-800 rounded animate-pulse delay-200" />
              </div>
@@ -164,14 +164,14 @@ const NoPixelCRMCard = () => {
           ease: "easeOut"
         }}
       >
-        <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500" />
+        <div className="absolute top-0 left-0 w-1 h-full bg-amber-500" />
         <div className="flex items-start gap-4">
           <div className="p-2 bg-zinc-900 rounded-full border border-zinc-800">
-            <Bell className="w-5 h-5 text-indigo-400" />
+            <Bell className="w-5 h-5 text-amber-400" />
           </div>
           <div className="space-y-1">
             <p className="text-zinc-200 text-lg font-medium tracking-normal">
-              🔔 <span className="text-white font-bold">글로우업</span> 님이 리포트를 <span className="text-indigo-400 font-bold">정독(80%)</span> 중입니다.
+              🔔 <span className="text-white font-bold">글로우업</span> 님이 리포트를 <span className="text-amber-400 font-bold">정독(80%)</span> 중입니다.
             </p>
             <p className="text-zinc-500 text-sm tracking-normal">방금 전 • 서울, 강남구</p>
           </div>
@@ -283,14 +283,14 @@ const NoPixelCRMCard = () => {
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-zinc-950 text-white selection:bg-indigo-500/30 relative overflow-hidden font-sans">
+    <div className="min-h-screen bg-zinc-950 text-white selection:bg-amber-500/30 relative overflow-hidden font-sans">
       <Navbar />
       <FloatingNavbar />
 
       {/* --- Background Effects --- */}
       <div className="fixed inset-0 bg-zinc-950 -z-20" />
       {/* Aurora Effect */}
-      <div className="fixed top-[-20%] left-[-10%] w-[120%] h-[80%] bg-indigo-900/20 blur-[120px] rounded-full mix-blend-screen animate-aurora pointer-events-none -z-10" />
+      <div className="fixed top-[-20%] left-[-10%] w-[120%] h-[80%] bg-amber-900/20 blur-[120px] rounded-full mix-blend-screen animate-aurora pointer-events-none -z-10" />
       <div className="fixed bottom-[-20%] right-[-10%] w-[100%] h-[60%] bg-purple-900/10 blur-[100px] rounded-full mix-blend-screen pointer-events-none -z-10" />
       {/* Grid Pattern */}
       <div className="fixed inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none -z-10" />
@@ -311,7 +311,7 @@ export default function LandingPage() {
               <span className="text-transparent bg-clip-text bg-gradient-to-b from-white to-zinc-500">
                 콜드메일 작성 시간을<br />
               </span>
-              <span className="text-transparent bg-clip-text bg-gradient-to-b from-white via-indigo-200 to-indigo-500">
+              <span className="text-transparent bg-clip-text bg-gradient-to-b from-white via-amber-200 to-amber-500">
                 6시간 → 10분으로
               </span>
             </motion.h1>
@@ -331,15 +331,15 @@ export default function LandingPage() {
               transition={{ duration: 0.5, delay: 0.4 }}
               className="relative group"
             >
-              <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full blur opacity-25 group-hover:opacity-75 transition duration-1000 group-hover:duration-200" />
+              <div className="absolute -inset-1 bg-gradient-to-r from-amber-500 to-purple-600 rounded-full blur opacity-25 group-hover:opacity-75 transition duration-1000 group-hover:duration-200" />
               <Link
                 href="/dashboard"
                 className="relative px-10 py-5 bg-zinc-950 ring-1 ring-white/10 rounded-full leading-none flex items-center divide-x divide-zinc-600"
               >
                 <span className="flex items-center space-x-5">
-                  <span className="pr-6 text-indigo-100 text-lg font-semibold">시작하기</span>
+                  <span className="pr-6 text-amber-100 text-lg font-semibold">시작하기</span>
                 </span>
-                <span className="pl-6 text-indigo-400 group-hover:text-indigo-300 transition duration-200">
+                <span className="pl-6 text-amber-400 group-hover:text-amber-300 transition duration-200">
                   <ArrowRight className="w-6 h-6" />
                 </span>
               </Link>
@@ -353,15 +353,15 @@ export default function LandingPage() {
           {/* Feature 1: Vision AI */}
           <div className="min-h-[600px] grid lg:grid-cols-2 gap-20 items-center">
             <div className="order-2 lg:order-1">
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-sm font-semibold tracking-wide mb-8">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm font-semibold tracking-wide mb-8">
                 <ScanLine className="w-4 h-4" /> Vision AI Analysis
               </div>
               <h2 className="text-4xl md:text-5xl font-bold tracking-tighter text-white mb-6 leading-relaxed">
                 경쟁사가 보지 못하는<br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400 font-extrabold">&lsquo;시각적 빈틈&rsquo;</span>을 찾아냅니다.
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-cyan-400 font-extrabold">&lsquo;시각적 빈틈&rsquo;</span>을 찾아냅니다.
               </h2>
               <p className="text-zinc-400 text-lg leading-relaxed max-w-lg">
-                단순 텍스트 분석이 아닙니다. <span className="text-zinc-50 font-semibold">폰트, 여백, 레이아웃, 이미지 무드</span>까지.<br className="hidden md:block" /> <span className="text-zinc-50 font-semibold">10년 차 디자이너의 눈</span>으로 상세페이지를 해부하고, <span className="text-indigo-400 font-semibold">이길 수밖에 없는 제안 포인트</span>를 추출합니다.
+                단순 텍스트 분석이 아닙니다. <span className="text-zinc-50 font-semibold">폰트, 여백, 레이아웃, 이미지 무드</span>까지.<br className="hidden md:block" /> <span className="text-zinc-50 font-semibold">10년 차 디자이너의 눈</span>으로 상세페이지를 해부하고, <span className="text-amber-400 font-semibold">이길 수밖에 없는 제안 포인트</span>를 추출합니다.
               </p>
             </div>
             <div className="order-1 lg:order-2 w-full">
@@ -380,7 +380,7 @@ export default function LandingPage() {
               </div>
               <h2 className="text-4xl md:text-5xl font-bold tracking-normal text-white mb-6 leading-relaxed">
                 설명하지 마세요.<br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400 font-extrabold">&lsquo;예고&rsquo;</span>하세요.
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-cyan-400 font-extrabold">&lsquo;예고&rsquo;</span>하세요.
               </h2>
               <p className="text-zinc-400 text-xl leading-relaxed max-w-lg">
                 메일 본문은 철저히 <span className="text-zinc-100 font-semibold">후킹</span>에만 집중하세요. 결정적인 한 방은 <span className="text-zinc-100 font-semibold">링크</span> 속에 숨겨져 있습니다. 고객이 링크를 타고 들어오는 순간, AI 분석과 당신의 인사이트가 결합된 리포트가 확실한 <span className="text-zinc-100 font-semibold">결과</span>를 만들어냅니다.
@@ -396,7 +396,7 @@ export default function LandingPage() {
               </div>
               <h2 className="text-4xl md:text-5xl font-bold tracking-normal text-white mb-6 leading-relaxed">
                 관심을 보이는 그 순간,<br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400 font-extrabold">놓치지 말고 낚아채세요.</span>
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-cyan-400 font-extrabold">놓치지 말고 낚아채세요.</span>
               </h2>
               <p className="text-zinc-400 text-xl leading-relaxed max-w-lg">
                 <span className="text-zinc-100 font-semibold">스크롤 80%</span>, <span className="text-zinc-100 font-semibold">체류 시간 30초</span>. 당신의 리포트를 <span className="text-zinc-100 font-semibold">정독</span>한 고객은 이미 마음이 열려 있습니다. <span className="text-zinc-100 font-semibold">확신</span>을 가지고 미팅을 제안하세요.
@@ -428,13 +428,13 @@ export default function LandingPage() {
               </div>
               <div className="space-y-4 mb-8">
                 <div className="flex items-center gap-3 text-zinc-300">
-                  <Check className="w-5 h-5 text-indigo-500" /> 60 Credits
+                  <Check className="w-5 h-5 text-amber-500" /> 60 Credits
                 </div>
                 <div className="flex items-center gap-3 text-zinc-300">
-                  <Check className="w-5 h-5 text-indigo-500" /> Basic Analytics
+                  <Check className="w-5 h-5 text-amber-500" /> Basic Analytics
                 </div>
                 <div className="flex items-center gap-3 text-zinc-300">
-                  <Check className="w-5 h-5 text-indigo-500" /> Email Support
+                  <Check className="w-5 h-5 text-amber-500" /> Email Support
                 </div>
               </div>
               <button className="w-full py-3 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white font-medium transition-colors">
@@ -443,8 +443,8 @@ export default function LandingPage() {
             </div>
 
             {/* Standard Tier (Most Popular) */}
-            <div className="relative p-8 rounded-2xl border border-indigo-500/50 bg-zinc-900/60 shadow-[0_0_40px_-10px_rgba(79,70,229,0.3)] scale-105 z-10">
-              <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-indigo-600 text-white text-xs font-bold rounded-full uppercase tracking-wide">
+            <div className="relative p-8 rounded-2xl border border-amber-500/50 bg-zinc-900/60 shadow-[0_0_40px_-10px_rgba(79,70,229,0.3)] scale-105 z-10">
+              <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-amber-600 text-white text-xs font-bold rounded-full uppercase tracking-wide">
                 Most Popular
               </div>
               <h3 className="text-xl font-semibold text-white mb-2">Standard</h3>
@@ -453,24 +453,24 @@ export default function LandingPage() {
                 <span className="text-4xl font-bold text-white">₩49,000</span>
                 <span className="text-zinc-500">/월</span>
               </div>
-              <p className="text-xs text-indigo-300 mb-6 font-medium">
+              <p className="text-xs text-amber-300 mb-6 font-medium">
                 ☕ 아메리카노 한 잔 값으로, 11명의 고객에게 제안하세요.
               </p>
               <div className="space-y-4 mb-8">
                 <div className="flex items-center gap-3 text-white">
-                  <Check className="w-5 h-5 text-indigo-400" /> 120 Credits
+                  <Check className="w-5 h-5 text-amber-400" /> 120 Credits
                 </div>
                 <div className="flex items-center gap-3 text-white">
-                  <Check className="w-5 h-5 text-indigo-400" /> Insight Mixer
+                  <Check className="w-5 h-5 text-amber-400" /> Insight Mixer
                 </div>
                 <div className="flex items-center gap-3 text-white">
-                  <Check className="w-5 h-5 text-indigo-400" /> No-Pixel CRM
+                  <Check className="w-5 h-5 text-amber-400" /> No-Pixel CRM
                 </div>
                 <div className="flex items-center gap-3 text-white">
-                  <Check className="w-5 h-5 text-indigo-400" /> Custom Context
+                  <Check className="w-5 h-5 text-amber-400" /> Custom Context
                 </div>
               </div>
-              <button className="w-full py-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition-colors shadow-lg shadow-indigo-500/25">
+              <button className="w-full py-3 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-bold transition-colors shadow-lg shadow-amber-500/25">
                 Get Started
               </button>
             </div>
@@ -485,16 +485,16 @@ export default function LandingPage() {
               </div>
               <div className="space-y-4 mb-8">
                 <div className="flex items-center gap-3 text-zinc-300">
-                  <Check className="w-5 h-5 text-indigo-500" /> 240 Credits
+                  <Check className="w-5 h-5 text-amber-500" /> 240 Credits
                 </div>
                 <div className="flex items-center gap-3 text-zinc-300">
-                  <Check className="w-5 h-5 text-indigo-500" /> Advanced Analytics
+                  <Check className="w-5 h-5 text-amber-500" /> Advanced Analytics
                 </div>
                 <div className="flex items-center gap-3 text-zinc-300">
-                  <Check className="w-5 h-5 text-indigo-500" /> Priority Support
+                  <Check className="w-5 h-5 text-amber-500" /> Priority Support
                 </div>
                 <div className="flex items-center gap-3 text-zinc-300">
-                  <Check className="w-5 h-5 text-indigo-500" /> API Access
+                  <Check className="w-5 h-5 text-amber-500" /> API Access
                 </div>
               </div>
               <button className="w-full py-3 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white font-medium transition-colors">
@@ -506,7 +506,7 @@ export default function LandingPage() {
 
           <div className="mt-12 text-center">
              <p className="text-zinc-500 text-sm">
-               회원가입 시 <span className="text-indigo-400 font-semibold">무료 3건</span>을 드립니다. 카드 등록 없이 체험해보세요.
+               회원가입 시 <span className="text-amber-400 font-semibold">무료 3건</span>을 드립니다. 카드 등록 없이 체험해보세요.
              </p>
           </div>
         </section>

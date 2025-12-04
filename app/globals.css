@@ -123,8 +123,8 @@
   --popover: #18181b;
   --popover-foreground: #f4f4f5;
   
-  /* Primary: Indigo-500 */
-  --primary: #6366f1;
+  /* Primary: Amber-500 (Gold) */
+  --primary: #f59e0b;
   --primary-foreground: #ffffff;
   
   /* Secondary: Zinc-800 */
@@ -148,8 +148,8 @@
   --border: #27272a;
   /* Input: Zinc-800 with slight opacity */
   --input: #27272a;
-  /* Ring: Indigo-500 */
-  --ring: #6366f1;
+  /* Ring: Premium Gold */
+  --ring: #ffb800;
   
   /* Chart colors */
   --chart-1: oklch(0.488 0.243 264.376);
@@ -161,12 +161,12 @@
   /* Sidebar: Zinc-900 */
   --sidebar: #18181b;
   --sidebar-foreground: #f4f4f5;
-  --sidebar-primary: #6366f1;
-  --sidebar-primary-foreground: #ffffff;
+  --sidebar-primary: #ffb800;
+  --sidebar-primary-foreground: #09090b;
   --sidebar-accent: #27272a;
   --sidebar-accent-foreground: #f4f4f5;
   --sidebar-border: #27272a;
-  --sidebar-ring: #6366f1;
+  --sidebar-ring: #ffb800;
 }
 
 @layer base {
@@ -211,8 +211,8 @@
   --text-tertiary: #71717a;   /* zinc-500 */
   
   /* Interactive */
-  --interactive: #6366f1;    /* indigo-500 */
-  --interactive-hover: #818cf8; /* indigo-400 */
+  --interactive: #ffb800;    /* amber-500 (gold) */
+  --interactive-hover: #fbbf24; /* amber-400 */
   --destructive-color: #f43f5e; /* rose-500 */
 }
 
@@ -226,8 +226,8 @@
   --text-primary: #fafafa;
   --text-secondary: #a1a1aa;
   --text-tertiary: #71717a;
-  --interactive: #6366f1;
-  --interactive-hover: #818cf8;
+  --interactive: #ffb800;
+  --interactive-hover: #fbbf24;
   --destructive-color: #f43f5e;
 }
 
@@ -260,4 +260,38 @@
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background-color: rgba(161, 161, 170, 0.5);
+}
+
+@layer utilities {
+  /* Apple-style Glass Panel */
+  .glass-panel {
+    @apply bg-white/[0.02] backdrop-blur-xl border border-white/[0.05] shadow-2xl shadow-black/50;
+  }
+
+  /* Premium Gold Button */
+  .premium-button {
+    @apply relative overflow-hidden bg-gradient-to-b from-[var(--primary)] to-[var(--primary-deep)] text-[var(--primary-foreground)] font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_1px_2px_rgba(0,0,0,0.4)] hover:brightness-110 active:scale-[0.98] transition-all duration-200;
+  }
+  
+  /* Premium Ghost Button */
+  .premium-ghost {
+    @apply bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.05] text-zinc-300 backdrop-blur-sm transition-all duration-200;
+  }
+
+  /* Subtle Gradient Border (Top-down light) */
+  .gradient-border {
+    @apply border border-transparent relative;
+    background-image: linear-gradient(var(--bg-secondary), var(--bg-secondary)), linear-gradient(to bottom, rgba(255,255,255,0.1), rgba(255,255,255,0.02));
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+  }
+  
+  /* Gold Glow Effect */
+  .gold-glow {
+    box-shadow: 0 0 20px -5px rgba(245, 158, 11, 0.3);
+  }
+  
+  .gold-text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-b from-[#FFD700] to-[#F59E0B];
+  }
 }

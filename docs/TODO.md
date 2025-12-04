@@ -104,7 +104,7 @@
 
 ## Week 3 – Vision 분석 및 Prospect 등록
 
-> 🎯 Goal: URL 입력 → Vision AI 분석 → Prospect 등록 플로우를 완성한다. (PRD 3.1)
+> 🎯 Goal: Clean Chrome Extension 연동 및 URL 입력 → Vision AI 분석 → Prospect 등록 플로우를 완성한다. (PRD 3.1, 3.2)
 
 ### 타입 정의 (DEV_GUIDE.md 2장 기준)
 
@@ -113,21 +113,36 @@
   - [x] `types/sequence.ts` – `Sequence`, `SequenceStatus`
   - [x] `types/step.ts` – `Step`, `StepStatus`
   - [x] `types/report-event.ts` – `ReportEvent`, `ReportEventType`
+  - [ ] `types/user-asset.ts` – `UserAsset` 타입 추가
+
+### Clean Chrome Extension 연동
+
+- [x] Chrome Extension 연동 작업
+  - [x] Chrome Extension 설치/연동 가이드 작성 (`docs/CHROME_EXTENSION.md`)
+  - [x] Extension에서 수집한 데이터 수신 API 엔드포인트 구현 (`app/api/extension/scan/route.ts`)
+  - [x] Clean Scan 데이터 수집 로직 구현
+    - [x] `clean_html` 필드 처리 (`.se-viewer` 또는 `.se-main-container` 내부 HTML)
+    - [x] `main_images` 필드 처리 (본문 내 주요 이미지 URL 리스트)
+    - [x] `text_length` 필드 처리 (본문 텍스트 길이, 완독률 분모용)
+  - [x] Extension 데이터와 URL 직접 입력 경로 통합 (`analyze-url.ts` 업데이트)
+  - [x] n8n Webhook 호출 로직 추가 (6가지 방법론 기반 Vision AI 분석)
 
 ### Vision 분석 페이지 (`/prospects/new`)
 
 - [ ] Vision 분석 UI 구현
   - [ ] URL 입력 필드 (DESIGN_PLAN.md 스타일: border-bottom 스타일)
+  - [ ] Chrome Extension 연동 안내 UI (Extension 설치 유도)
   - [ ] **AnalysisTerminal 컴포넌트** 구현 (`components/mixer/AnalysisTerminal.tsx`)
     - [ ] 터미널 스타일 로딩 UI (검은 배경, 모노스페이스 폰트)
     - [ ] Framer Motion으로 로그 순차 출력 애니메이션
-    - [ ] 로그 시나리오: Connecting... → Capturing screenshot... → Uploading to Gemini... → Extracting USP... → Building report...
+    - [ ] 로그 시나리오: Connecting... → Clean scanning... → Uploading to Gemini... → Extracting USP... → Building report...
 
 ### Server Actions (DEV_GUIDE.md 4장 기준)
 
 - [ ] `app/actions/analyze-url.ts` 구현
-  - [ ] n8n `/webhook/analyze-url` 호출 로직
-  - [ ] `prospects` 테이블에 `vision_data` 저장
+  - [ ] Chrome Extension 데이터 수신 처리 (선택)
+  - [ ] n8n `/webhook/analyze-url` 호출 로직 (6가지 방법론 기반 프롬프트)
+  - [ ] `prospects` 테이블에 `vision_data` 및 Clean Scan 데이터 저장
   - [ ] 분석 완료 후 `/prospects/[id]/mix`로 자동 리다이렉트
 
 ### 에러 핸들링
@@ -135,6 +150,7 @@
 - [ ] 에러 핸들링/로딩 상태
   - [ ] 생성 중 로딩 스피너/상태 표시 (터미널 뷰)
   - [ ] API 에러 시 사용자 친화적인 메시지 + 재시도 버튼
+  - [ ] Chrome Extension 미설치 시 안내 메시지
 
 ---
 
@@ -149,9 +165,26 @@
   - [ ] `isDragging` 상태 관리
   - [ ] `setCustomContext`, `setIsDragging` 액션
 
-### 좌측 사이드바: Strategy Console
+### 3단 분할 레이아웃 구현
 
-- [ ] `components/mixer/StrategyConsole.tsx` 구현
+- [ ] `components/mixer/Workbench.tsx` 구현 (3단 분할 레이아웃)
+  - [ ] 좌측: Asset Library (나만의 무기고)
+  - [ ] 중앙: Editor & Injection Zone (작업대)
+  - [ ] 우측: Preview (리포트 미리보기)
+  - [ ] 반응형 레이아웃 (작은 화면에서 접힘 가능)
+
+### 좌측: Asset Library (User Asset Storage)
+
+- [ ] `components/mixer/AssetLibrary.tsx` 구현
+  - [ ] 파일 업로드 기능 (이미지, GIF, 비디오, 문서)
+  - [ ] 저장된 자료 목록 표시 (그리드/리스트 뷰)
+  - [ ] 파일 삭제 및 관리 기능
+  - [ ] 드래그 앤 드롭으로 중앙 Editor에 삽입 가능 (`useDraggable`)
+  - [ ] Supabase Storage 연동
+
+### 중앙: Editor & Injection Zone
+
+- [ ] `components/mixer/StrategyConsole.tsx` 구현 (중앙 영역)
   - [ ] **Vision Fact 카드**: `vision_data`에서 추출한 USP, Mood 등을 카드 형태로 표시 (읽기 전용)
   - [ ] **Custom Context Input**: Textarea (DESIGN_PLAN.md 스타일: border-bottom)
     - [ ] Placeholder: "당신의 강점을 입력하세요. 예: 지난 3개월간 뷰티 브랜드 5곳의 ROAS를 평균 280% 개선..."
@@ -161,45 +194,60 @@
     - [ ] 이미지 칩: "📷 성과 그래프", "📂 포트폴리오"
     - [ ] `components/mixer/StrategyChip.tsx` 구현 (dnd-kit `useDraggable`)
 
-### 우측 메인: Sequence Playlist
-
 - [ ] `components/mixer/SequencePlaylist.tsx` 구현
-
   - [ ] DndContext 설정 (`@dnd-kit/core`)
-  - [ ] 9개 Step 카드 렌더링
+  - [ ] **5개 Step 카드 렌더링** (9개 → 5개로 변경)
   - [ ] 드래그 앤 드롭 핸들러 (`handleDragEnd`)
-    - [ ] Chip 드롭 시 `regenerateStepAction` 호출
+    - [ ] Asset/Chip 드롭 시 `regenerateStepAction` 호출
     - [ ] Loading 상태 관리 (`loadingStepId`)
 
 - [ ] `components/mixer/StepCard.tsx` 구현
   - [ ] Droppable 영역 설정 (`useDroppable`)
-  - [ ] Step 헤더 (Step Number + Type, Core Step 강조)
+  - [ ] Step 헤더 (Step Number + Type, Core Step 강조: 1, 3, 5번)
   - [ ] **Dual-View 탭 구조**:
     - [ ] Tab 1: ✉️ 예고편 (Email Editor)
       - [ ] `email_subject` 입력 필드
       - [ ] `email_body` Textarea
+      - [ ] **Placeholder**: AI가 비워둔 빈칸 표시
+      - [ ] **Free Drop**: 문단 사이 어디든 자료 삽입 가능
       - [ ] [Copy & Log] 버튼 (Optimistic UI)
     - [ ] Tab 2: 🖥️ 본편 (Web Report Preview)
       - [ ] 리포트 미리보기 (실제 `/r/[prospect_id]`와 동일한 렌더링)
 
+### 우측: Preview (리포트 미리보기)
+
+- [ ] `components/mixer/ReportPreview.tsx` 구현
+  - [ ] PC 화면에 최적화된 웹 리포트 미리보기
+  - [ ] 데이터 소스: `prospects.vision_data` + `sequences.custom_context`
+  - [ ] 실제 `/r/[prospect_id]`와 동일한 렌더링
+  - [ ] 실시간 업데이트: Editor에서 수정 시 즉시 반영
+
 ### Server Actions
 
 - [ ] `app/actions/generate-sequence.ts` 구현
-
-  - [ ] n8n `/webhook/generate-sequence` 호출
-  - [ ] `sequences` 테이블에 INSERT
-  - [ ] `step` 테이블에 9개 Step 일괄 INSERT
+  - [ ] n8n `/webhook/generate-sequence` 호출 (6가지 방법론 기반)
+  - [ ] `sequences` 테이블에 INSERT (`total_steps: 5`)
+  - [ ] `step` 테이블에 **5개 Step 일괄 INSERT** (9개 → 5개로 변경)
+  - [ ] Core Step 설정: 1, 3, 5번 (기존 1, 3, 6, 9번에서 변경)
 
 - [ ] `app/actions/regenerate-step.ts` 구현
-
   - [ ] Step 데이터 조회 (sequence, prospect 포함)
+  - [ ] Asset ID 또는 Chip 텍스트 처리
   - [ ] n8n `/webhook/regenerate-step` 호출
   - [ ] `step.email_body` 업데이트
-  - [ ] 이미지 칩 처리: `[ 📷 여기에 (성과 그래프) 이미지를 붙여넣으세요 ]` 마커 삽입
+  - [ ] 이미지/자료 칩 처리: `[ 📷 여기에 (성과 그래프) 이미지를 붙여넣으세요 ]` 마커 삽입
 
 - [ ] `app/actions/update-step-status.ts` 구현
   - [ ] `step.status = 'sent'` 업데이트
   - [ ] `sent_at` 타임스탬프 기록
+  - [ ] Snapshot 저장 로직 (해당 시점의 제안서 내용 저장)
+
+- [ ] `app/actions/upload-asset.ts` 구현 (User Asset Storage)
+  - [ ] 파일 업로드 (Supabase Storage)
+  - [ ] `user_assets` 테이블에 메타데이터 저장
+
+- [ ] `app/actions/list-assets.ts` 구현
+  - [ ] 사용자별 Asset 목록 조회
 
 ### Optimistic UI
 
@@ -213,7 +261,27 @@
 
 ## Week 5 – 미니 CRM 대시보드
 
-> 🎯 Goal: `/dashboard`에 고밀도 테이블로 Prospects를 관리하는 CRM UI를 구현한다. (PRD 3.2)
+> 🎯 Goal: `/dashboard`에 고밀도 테이블로 Prospects를 관리하는 CRM UI를 구현하고, 핵심 KPI 지표를 시각화한다. (PRD 3.2, 8.1)
+
+### KPI 카드 구현
+
+- [ ] `components/dashboard/KPICards.tsx` 구현
+  - [ ] **리포트 완독률 카드** (Engagement)
+    - [ ] 계산식: (사용자 스크롤 깊이 / Clean Body 높이) * 100
+    - [ ] 목표치: Avg. 60%↑ 표시
+    - [ ] 트렌드 표시 (전주 대비)
+  - [ ] **리드 전환율 카드** (Conversion)
+    - [ ] 계산식: (Hot + Warm 상태 도달 수 / 전체 발송 성공 수) * 100
+    - [ ] 목표치: 15%↑ 표시
+    - [ ] Hot/Warm/Cold 비율 시각화
+  - [ ] **리포트 생성 시간 카드** (Productivity)
+    - [ ] 계산식: 스캔 시작 버튼 클릭 ~ 발송 완료 버튼 클릭까지 소요 시간
+    - [ ] 목표치: Avg. 10분↓ 표시
+    - [ ] 평균 시간 표시 및 트렌드
+  - [ ] **주간 재사용률 카드** (Retention)
+    - [ ] 계산식: 지난주 생성 유저가 이번 주에도 생성한 비율
+    - [ ] 목표치: 40%↑ 표시
+    - [ ] 주간 트렌드 그래프
 
 ### CRM 테이블 UI (DESIGN_PLAN.md 고밀도 테이블 스타일)
 
@@ -234,6 +302,12 @@
 - [ ] `lib/server/prospects.ts` 확장
   - [ ] `listProspectsByUserWithStatus` (CRM 상태별 필터링)
   - [ ] 정렬 로직 구현 (Hot + Re-visit 우선)
+
+- [ ] `lib/server/dashboard.ts` 구현 (KPI 계산)
+  - [ ] `calculateEngagementRate` (완독률 계산)
+  - [ ] `calculateConversionRate` (전환율 계산)
+  - [ ] `calculateAverageGenerationTime` (평균 생성 시간)
+  - [ ] `calculateWeeklyRetention` (주간 재사용률)
 
 ---
 
@@ -282,13 +356,13 @@
 - [ ] `/app/sequences` – 시퀀스 리스트 뷰
 
   - [ ] 한 행 = 하나의 Sequence(타겟)
-  - [ ] 컬럼: Prospect명, 시퀀스 타입(9통), 진행 단계, 보낸 메일 수, 마지막 보낸 시각, 다음 발송 예정일
+  - [ ] 컬럼: Prospect명, 시퀀스 타입(5통), 진행 단계, 보낸 메일 수, 마지막 보낸 시각, 다음 발송 예정일
   - [ ] 정렬: 기본 `다음 발송 예정일` 오름차순
 
 - [ ] `/app/sequences/[id]` – 타겟 상세 & 히스토리
   - [ ] 상단: Prospect/Sequence 요약 (브랜드명, 담당자, 현재 단계 등)
-  - [ ] 하단: Step별 카드 리스트
-    - [ ] Step 번호/라벨
+  - [ ] 하단: Step별 카드 리스트 (5개 Step)
+    - [ ] Step 번호/라벨 (1~5)
     - [ ] 보낸 시각, 읽음/회신 상태
     - [ ] [본문 펼치기]로 email_body 전체 보기
 
@@ -334,6 +408,22 @@
 - [ ] 주요 경로에 대한 수동 테스트:
   - [ ] Vision 분석 → Prospect 등록 → 인사이트 믹서 → 리포트 생성 → 행동 추적
 - [ ] 에러 화면/빈 상태(Empty state) 처리
+- [x] 문서 업데이트 (최신 MVP 계획서 반영)
+  - [x] PRD.md 업데이트 완료
+    - [x] 프로젝트 개요: 6가지 방법론, Clean Scan & Hybrid Injection 핵심 가치 반영
+    - [x] 데이터베이스 스키마: 5단계 시퀀스, user_assets 테이블, Clean Scan 필드 추가
+    - [x] 기능 명세: Chrome Extension 연동, 3단 분할 레이아웃 반영
+    - [x] API 명세: 5개 Step 생성, 6가지 방법론 언급
+    - [x] 성공 지표: KPI 지표 추가 (완독률, 전환율, 생성 시간, 재사용률)
+  - [x] TODO.md 업데이트 완료
+    - [x] Week 3: Chrome Extension 연동 작업 추가
+    - [x] Week 4: 3단 분할 레이아웃, User Asset Storage, 5단계 시퀀스 반영
+    - [x] Week 5: KPI 카드 추가 작업 반영
+    - [x] Week 7: 시퀀스 리스트 5단계로 변경
+  - [x] DEV_GUIDE.md 업데이트 완료
+    - [x] 타입 정의: 5단계 시퀀스, UserAsset 타입 추가
+    - [x] 컴포넌트 구조: 3단 분할 레이아웃, AssetLibrary, Workbench, ReportPreview 반영
+    - [x] Server Actions: 5개 Step 생성 로직, Core Step 1,3,5번 설정
 - [ ] .env, README/PRD/TODO/DEV_GUIDE/DESIGN_PLAN.md 최신 상태로 정리
 - [ ] Supabase 마이그레이션 파일 정리 (`supabase/migrations/` 형식 확인)
 
@@ -374,7 +464,7 @@
 ### MVP 검증
 
 - [ ] 1명의 마케터가 3개 Prospect 등록 완료
-- [ ] 9개 Step 생성 및 5개 이상 Copy & Log
+- [ ] 5개 Step 생성 및 3개 이상 Copy & Log
 - [ ] 1개 이상의 Hot Lead 전환 (80% 스크롤 + 30초 체류)
 
 ### 제품 완성도

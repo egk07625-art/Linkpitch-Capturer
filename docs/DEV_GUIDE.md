@@ -98,6 +98,10 @@ export interface Prospect {
   url: string;
   memo?: string;
   vision_data: VisionData; // JSONB
+  // Clean Scan 데이터 (Chrome Extension 수집)
+  clean_html?: string; // .se-viewer 내부 순수 HTML
+  main_images?: string[]; // 본문 내 주요 이미지 URL 리스트
+  text_length?: number; // 본문 텍스트 길이 (완독률 분모용)
   crm_status: CRMStatus;
   visit_count: number;
   last_viewed_at?: string;
@@ -116,8 +120,8 @@ export interface Sequence {
   user_id: string;
   prospect_id: string;
   name: string;
-  sequence_type: string; // '9_steps'
-  total_steps: number;
+  sequence_type: string; // '5_steps'
+  total_steps: number; // 5
   current_step: number;
   status: SequenceStatus;
   custom_context?: string; // 나만의 무기
@@ -135,15 +139,31 @@ export interface Step {
   id: string;
   user_id: string;
   sequence_id: string;
-  step_number: number; // 1~9
+  step_number: number; // 1~5
   step_type: string; // 'Hook', 'Value', ...
   email_subject: string;
   email_body: string;
   status: StepStatus;
   sent_at?: string;
-  is_core_step: boolean; // 1, 3, 6, 9번 강조용
+  is_core_step: boolean; // 1, 3, 5번 강조용
   created_at: string;
   updated_at: string;
+}
+```
+
+### types/user-asset.ts
+
+```typescript
+export type UserAssetType = 'image' | 'gif' | 'video' | 'document';
+
+export interface UserAsset {
+  id: string;
+  user_id: string;
+  file_url: string; // Supabase Storage URL
+  file_type: UserAssetType;
+  name: string; // 파일명
+  created_at: string;
+  updated_at?: string;
 }
 ```
 
@@ -257,24 +277,28 @@ export const useMixerStore = create<MixerState>((set) => ({
 }))
 ```
 
-#### **B. 레이아웃 (app/prospects/[id]/mix/page.tsx)**
+#### **B. 레이아웃 (app/prospects/[id]/mix/page.tsx) - 3단 분할**
 
 ```typescript
-import { StrategyConsole } from '@/components/mixer/StrategyConsole'
-import { SequencePlaylist } from '@/components/mixer/SequencePlaylist'
+import { Workbench } from '@/components/mixer/Workbench'
 
 export default function MixPage({ params }: { params: { id: string } }) {
   return (
     <div className="flex h-screen">
-      {/* Left Sidebar */}
-      <aside className="w-80 border-r border-zinc-800 overflow-y-auto">
-        <StrategyConsole prospectId={params.id} />
+      {/* Left: Asset Library */}
+      <aside className="w-64 border-r border-zinc-800 overflow-y-auto">
+        <AssetLibrary prospectId={params.id} />
       </aside>
 
-      {/* Right Main */}
-      <main className="flex-1 overflow-y-auto p-8">
-        <SequencePlaylist prospectId={params.id} />
+      {/* Center: Editor & Injection Zone */}
+      <main className="flex-1 border-r border-zinc-800 overflow-y-auto">
+        <Workbench prospectId={params.id} />
       </main>
+
+      {/* Right: Preview */}
+      <aside className="w-96 overflow-y-auto">
+        <ReportPreview prospectId={params.id} />
+      </aside>
     </div>
   )
 }
@@ -291,7 +315,7 @@ import { regenerateStepAction } from '@/app/actions/regenerate-step'
 import { useState } from 'react'
 
 export function SequencePlaylist({ prospectId }: { prospectId: string }) {
-  const [steps, setSteps] = useState<Step[]>([]) // DB에서 로드
+  const [steps, setSteps] = useState<Step[]>([]) // DB에서 로드 (5개)
   const [loadingStepId, setLoadingStepId] = useState<string | null>(null)
 
   const handleDragEnd = async (event: DragEndEvent) => {
@@ -299,6 +323,7 @@ export function SequencePlaylist({ prospectId }: { prospectId: string }) {
 
     if (!over) return
 
+    const assetId = active.data.current?.assetId // User Asset ID
     const chipText = active.data.current?.text // "📷 성과 그래프"
     const stepId = over.id as string
 
@@ -309,6 +334,7 @@ export function SequencePlaylist({ prospectId }: { prospectId: string }) {
       // 2. 서버 액션 호출
       const updatedBody = await regenerateStepAction({
         step_id: stepId,
+        asset_id: assetId,
         chip_text: chipText,
       })
 
@@ -394,9 +420,10 @@ export function StepCard({ step, isLoading }: { step: Step; isLoading: boolean }
       {/* Step Header */}
       <div className="flex items-center gap-2 mb-4">
         <span className={step.is_core_step ? 'text-indigo-500' : ''}>
-          {step.step_number}
+          {step.step_number} {/* 1~5 */}
         </span>
         <span>{step.step_type}</span>
+        {step.is_core_step && <span className="text-xs text-indigo-500">Core</span>}
       </div>
 
       {/* Tabs */}
@@ -642,22 +669,22 @@ export async function generateSequenceAction(prospectId: string) {
       user_id: prospect.user_id,
       prospect_id: prospectId,
       name: `${prospect.name} 시퀀스`,
-      sequence_type: '9_steps',
-      total_steps: 9,
+      sequence_type: '5_steps',
+      total_steps: 5,
     })
     .select()
     .single()
 
-  // 4. Steps 일괄 INSERT
+  // 4. Steps 일괄 INSERT (5개)
   await supabase.from('step').insert(
     steps.map((s: any, i: number) => ({
       user_id: prospect.user_id,
       sequence_id: sequence.id,
-      step_number: i + 1,
+      step_number: i + 1, // 1~5
       step_type: s.step_type,
       email_subject: s.email_subject,
       email_body: s.email_body,
-      is_core_step: [1, 3, 6, 9].includes(i + 1),
+      is_core_step: [1, 3, 5].includes(i + 1), // Core Step: 1, 3, 5번
     }))
   )
 

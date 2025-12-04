@@ -60,11 +60,24 @@ async function getSupabaseUserId(clerkId: string): Promise<string> {
 }
 
 /**
+ * Prospect 조회 옵션
+ */
+export interface GetProspectsOptions {
+  status?: "hot" | "warm" | "cold";
+  search?: string; // 회사명, URL, 담당자 검색
+  sort?: "name" | "created_at" | "last_activity_at";
+  limit?: number;
+}
+
+/**
  * 현재 사용자의 모든 Prospect 조회
  *
+ * @param options 조회 옵션 (필터, 검색, 정렬, 제한)
  * @returns 현재 사용자의 Prospect 배열
  */
-export async function getProspects(): Promise<Prospect[]> {
+export async function getProspects(
+  options?: GetProspectsOptions,
+): Promise<Prospect[]> {
   const { userId: clerkId } = await auth();
 
   if (!clerkId) {
@@ -75,11 +88,43 @@ export async function getProspects(): Promise<Prospect[]> {
   // Service Role 클라이언트 사용 (RLS 우회)
   const supabase = getServiceRoleClient();
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("prospects")
     .select("*")
-    .eq("user_id", userUuid)
-    .order("created_at", { ascending: false });
+    .eq("user_id", userUuid);
+
+  // 상태 필터
+  if (options?.status) {
+    query = query.eq("crm_status", options.status);
+  }
+
+  // 검색 기능 (회사명, URL, 담당자 이름/이메일)
+  if (options?.search) {
+    const searchTerm = options.search;
+    query = query.or(
+      `name.ilike.%${searchTerm}%,url.ilike.%${searchTerm}%,contact_name.ilike.%${searchTerm}%,contact_email.ilike.%${searchTerm}%`,
+    );
+  }
+
+  // 정렬
+  if (options?.sort === "name") {
+    query = query.order("name", { ascending: true });
+  } else if (options?.sort === "last_activity_at") {
+    query = query.order("last_activity_at", {
+      ascending: false,
+      nullsFirst: false,
+    });
+  } else {
+    // 기본값: created_at
+    query = query.order("created_at", { ascending: false });
+  }
+
+  // 제한
+  if (options?.limit) {
+    query = query.limit(options.limit);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     console.error("Prospect 조회 실패:", {
@@ -89,6 +134,7 @@ export async function getProspects(): Promise<Prospect[]> {
       errorDetails: error.details,
       errorHint: error.hint,
       userUuid,
+      options,
     });
     throw new Error(`Prospect 조회 실패: ${error.message}`);
   }
@@ -286,4 +332,64 @@ export async function updateProspect(
   }
 
   return data as Prospect;
+}
+
+/**
+ * Prospect 삭제
+ *
+ * @param id Prospect ID
+ */
+export async function deleteProspect(id: string): Promise<void> {
+  const { userId: clerkId } = await auth();
+
+  if (!clerkId) {
+    throw new Error("Unauthorized: 사용자 인증이 필요합니다.");
+  }
+
+  const userUuid = await getSupabaseUserId(clerkId);
+  // Service Role 클라이언트 사용 (RLS 우회)
+  const supabase = getServiceRoleClient();
+
+  // Prospect가 현재 사용자의 것인지 확인
+  const { data: existing, error: checkError } = await supabase
+    .from("prospects")
+    .select("id")
+    .eq("id", id)
+    .eq("user_id", userUuid)
+    .single();
+
+  if (checkError || !existing) {
+    console.error("Prospect 소유권 확인 실패:", {
+      error: checkError,
+      errorCode: checkError?.code,
+      errorMessage: checkError?.message,
+      prospectId: id,
+      userUuid,
+      hasExisting: !!existing,
+    });
+    throw new Error(
+      `Prospect 조회 실패: ${
+        checkError?.message || "Prospect를 찾을 수 없습니다."
+      }`,
+    );
+  }
+
+  const { error } = await supabase
+    .from("prospects")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", userUuid);
+
+  if (error) {
+    console.error("Prospect 삭제 실패:", {
+      error,
+      errorCode: error.code,
+      errorMessage: error.message,
+      errorDetails: error.details,
+      errorHint: error.hint,
+      prospectId: id,
+      userUuid,
+    });
+    throw new Error(`Prospect 삭제 실패: ${error.message}`);
+  }
 }

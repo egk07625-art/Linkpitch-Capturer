@@ -3,7 +3,19 @@
 import { getServiceRoleClient } from '@/lib/supabase/service-role';
 import { auth } from '@clerk/nextjs/server';
 
-export async function analyzeUrl(url: string) {
+interface AnalyzeUrlOptions {
+  url: string;
+  clean_html?: string;
+  main_images?: string[];
+  text_length?: number;
+}
+
+export async function analyzeUrl(options: AnalyzeUrlOptions | string) {
+  // 문자열로 전달된 경우 (기존 호환성)
+  const url = typeof options === 'string' ? options : options.url;
+  const clean_html = typeof options === 'string' ? undefined : options.clean_html;
+  const main_images = typeof options === 'string' ? undefined : options.main_images;
+  const text_length = typeof options === 'string' ? undefined : options.text_length;
   // Use Service Role client to bypass RLS (no RLS policies needed)
   const supabase = getServiceRoleClient();
   
@@ -61,28 +73,57 @@ export async function analyzeUrl(url: string) {
 
 
 
-  // Mock data
-  const MOCK_VISION_DATA = {
-    summary: "This is a mock summary of the URL analysis.",
-    keywords: ["mock", "analysis", "data"],
-  };
-
   const extractDomain = (url: string) => {
     try {
       const hostname = new URL(url).hostname;
       return hostname.startsWith('www.') ? hostname.substring(4) : hostname;
-    } catch { return url; }
+    } catch {
+      return url;
+    }
   };
 
-  // 4. Create Prospect (Real Insert)
+  // 3. n8n Webhook 호출 (6가지 방법론 기반 Vision AI 분석)
+  let vision_data = {};
+  const n8nWebhookUrl = process.env.N8N_WEBHOOK_ANALYZE_URL;
+  
+  if (n8nWebhookUrl) {
+    try {
+      const response = await fetch(n8nWebhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url,
+          user_id: clerkId,
+          clean_html,
+          main_images,
+          text_length,
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        vision_data = result.vision_data || {};
+      } else {
+        console.warn('n8n webhook 호출 실패, 기본 데이터로 진행:', response.status);
+      }
+    } catch (error) {
+      console.error('n8n webhook 호출 중 오류:', error);
+      // n8n 호출 실패 시에도 Prospect는 생성하되, vision_data는 빈 객체로 진행
+    }
+  }
+
+  // 4. Create Prospect (Clean Scan 데이터 포함)
   const { data: prospect, error: prospectError } = await supabase
     .from('prospects')
     .insert({
       user_id: userUuid,
       name: extractDomain(url),
-      contact_email: 'info@' + extractDomain(url), // Placeholder
+      contact_email: `info@${extractDomain(url)}`, // Placeholder
       url,
-      vision_data: MOCK_VISION_DATA,
+      clean_html: clean_html || null,
+      main_images: main_images || null,
+      text_length: text_length || null,
+      vision_data: vision_data,
     })
     .select()
     .single();

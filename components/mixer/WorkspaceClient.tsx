@@ -130,8 +130,8 @@ function DraggableStrategyChip({ item, onUpdate }: DraggableStrategyChipProps) {
   };
 
   const getIcon = () => {
-    if (item.type === 'image') return <Image className="w-3 h-3 text-indigo-400" />;
-    if (item.type === 'file') return <FileText className="w-3 h-3 text-indigo-400" />;
+    if (item.type === 'image') return <Image className="w-3 h-3 text-amber-400" />;
+    if (item.type === 'file') return <FileText className="w-3 h-3 text-amber-400" />;
     return null;
   };
 
@@ -141,7 +141,7 @@ function DraggableStrategyChip({ item, onUpdate }: DraggableStrategyChipProps) {
       {...listeners}
       {...attributes}
       className={cn(
-        "relative group bg-zinc-900/30 backdrop-blur-sm border border-white/5 hover:border-indigo-500/30 rounded-lg p-3 cursor-grab active:cursor-grabbing transition-all duration-300",
+        "relative group bg-zinc-900/30 backdrop-blur-sm border border-white/5 hover:border-amber-500/30 rounded-lg p-3 cursor-grab active:cursor-grabbing transition-all duration-300",
         isDragging && "opacity-50 scale-95"
       )}
     >
@@ -151,7 +151,7 @@ function DraggableStrategyChip({ item, onUpdate }: DraggableStrategyChipProps) {
       <div className="pl-6">
         <div className="flex items-center gap-1.5 mb-2">
           {getIcon()}
-          <p className="text-xs font-bold text-indigo-400">{item.label}</p>
+          <p className="text-xs font-bold text-amber-400">{item.label}</p>
         </div>
         {isEditing ? (
           <input
@@ -161,7 +161,7 @@ function DraggableStrategyChip({ item, onUpdate }: DraggableStrategyChipProps) {
             onBlur={handleBlur}
             onKeyDown={(e) => e.key === 'Enter' && handleBlur()}
             autoFocus
-            className="w-full bg-zinc-900/50 border border-indigo-500/50 rounded px-2 py-1 text-sm text-zinc-200 outline-none"
+            className="w-full bg-zinc-900/50 border border-amber-500/50 rounded px-2 py-1 text-sm text-zinc-200 outline-none"
           />
         ) : (
           <p
@@ -217,7 +217,7 @@ function FileUploader({ onFileUpload, isUploading }: { onFileUpload: (files: Fil
       className={cn(
         "h-24 border border-dashed rounded-xl flex flex-col items-center justify-center text-zinc-500 transition-all cursor-pointer group",
         isDragging
-          ? "border-indigo-500 bg-indigo-500/10 text-indigo-400"
+          ? "border-amber-500 bg-amber-500/10 text-amber-400"
           : "border-zinc-800 hover:border-zinc-600 hover:bg-zinc-800/30",
         isUploading && "opacity-50 cursor-wait"
       )}
@@ -233,7 +233,7 @@ function FileUploader({ onFileUpload, isUploading }: { onFileUpload: (files: Fil
       />
       <div className={cn(
         "p-2 rounded-full mb-1 transition-colors",
-        isDragging ? "bg-indigo-500/20" : "bg-zinc-800/50 group-hover:bg-zinc-800"
+        isDragging ? "bg-amber-500/20" : "bg-zinc-800/50 group-hover:bg-zinc-800"
       )}>
         {isDragging ? (
           <Upload className="w-5 h-5 animate-bounce" />
@@ -271,7 +271,7 @@ function CollapsibleDropZone({
         className="w-full px-4 py-3 bg-zinc-900/50 hover:bg-zinc-800/50 transition-colors flex items-center justify-between group"
       >
         <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-indigo-400" />
+          <Sparkles className="w-4 h-4 text-amber-400" />
           <div className="text-left">
             <h3 className="text-sm font-semibold text-zinc-200">선택한 인사이트</h3>
             <p className="text-xs text-zinc-500 mt-0.5">
@@ -292,12 +292,12 @@ function CollapsibleDropZone({
           className={cn(
             "p-4 transition-all duration-200",
             droppedInsights.length === 0 ? "min-h-[140px]" : "",
-            isOver && "bg-indigo-500/10"
+            isOver && "bg-amber-500/10"
           )}
         >
           {droppedInsights.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center py-8">
-              <Sparkles className="w-8 h-8 mb-2 text-indigo-500/50 animate-pulse" />
+              <Sparkles className="w-8 h-8 mb-2 text-amber-500/50 animate-pulse" />
               <p className="text-xs font-medium text-zinc-500">이곳에 칩을 놓으세요</p>
               <p className="text-xs text-zinc-600 mt-1">드래그하여 추가</p>
             </div>
@@ -306,7 +306,7 @@ function CollapsibleDropZone({
               {droppedInsights.map((item) => (
                 <div
                   key={item.id}
-                  className="relative group/item bg-zinc-800/60 border border-indigo-500/30 rounded-lg p-3 hover:bg-zinc-800/80 transition-colors"
+                  className="relative group/item bg-zinc-800/60 border border-amber-500/30 rounded-lg p-3 hover:bg-zinc-800/80 transition-colors"
                 >
                   <button
                     onClick={() => onRemove(item.id)}
@@ -314,7 +314,7 @@ function CollapsibleDropZone({
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </button>
-                  <p className="text-xs font-bold text-indigo-400 mb-1">{item.label}</p>
+                  <p className="text-xs font-bold text-amber-400 mb-1">{item.label}</p>
                   <p className="text-sm text-zinc-200 pr-6 leading-relaxed">{item.content}</p>
                 </div>
               ))}
@@ -518,10 +518,10 @@ export default function WorkspaceClient({
       {/* Drag Overlay */}
       <DragOverlay>
         {draggedItem ? (
-          <div className="bg-zinc-800/90 backdrop-blur-md border border-indigo-500/50 text-white px-4 py-3 rounded-lg shadow-2xl w-64 cursor-grabbing flex items-center gap-3">
+          <div className="bg-zinc-800/90 backdrop-blur-md border border-amber-500/50 text-white px-4 py-3 rounded-lg shadow-2xl w-64 cursor-grabbing flex items-center gap-3">
             <GripVertical className="w-4 h-4 text-zinc-500" />
             <div>
-              <p className="text-[10px] font-bold text-indigo-400 uppercase">{draggedItem.label}</p>
+              <p className="text-[10px] font-bold text-amber-400 uppercase">{draggedItem.label}</p>
               <p className="text-xs truncate text-zinc-300">{draggedItem.content}</p>
             </div>
           </div>

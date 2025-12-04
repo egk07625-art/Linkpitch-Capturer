@@ -221,7 +221,7 @@ export default function Workspace() {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => setIsAiBarOpen(true)}
-              className="fixed bottom-6 right-6 h-12 w-12 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/30 flex items-center justify-center z-50 transition-colors"
+              className="fixed bottom-6 right-6 h-12 w-12 rounded-full bg-amber-600 hover:bg-amber-500 text-white shadow-lg shadow-amber-500/30 flex items-center justify-center z-50 transition-colors"
             >
               <Bot className="w-6 h-6" />
             </motion.button>
@@ -236,7 +236,7 @@ export default function Workspace() {
                 <div className="relative group">
                   <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl opacity-20 group-hover:opacity-40 blur transition duration-500" />
                   <div className="relative bg-zinc-900/95 backdrop-blur-xl border border-zinc-700/50 rounded-xl shadow-2xl flex items-center p-1.5 pl-4 overflow-hidden">
-                    <Bot className="w-5 h-5 text-indigo-400 mr-3 animate-pulse" />
+                    <Bot className="w-5 h-5 text-amber-400 mr-3 animate-pulse" />
                     <input 
                       type="text" 
                       placeholder="AI에게 메시지 개선이나 톤 조정을 요청하세요..." 
@@ -252,7 +252,7 @@ export default function Workspace() {
                       >
                         <X className="w-4 h-4" />
                       </Button>
-                      <Button size="sm" className="h-8 px-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-medium">
+                      <Button size="sm" className="h-8 px-3 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-medium">
                         실행
                       </Button>
                     </div>
@@ -267,10 +267,10 @@ export default function Workspace() {
       {/* Drag Overlay (Visual feedback when dragging) */}
       <DragOverlay>
         {draggedItem ? (
-          <div className="bg-zinc-800/90 backdrop-blur-md border border-indigo-500/50 text-white px-4 py-3 rounded-lg shadow-2xl w-64 cursor-grabbing flex items-center gap-3">
+          <div className="bg-zinc-800/90 backdrop-blur-md border border-amber-500/50 text-white px-4 py-3 rounded-lg shadow-2xl w-64 cursor-grabbing flex items-center gap-3">
              <GripVertical className="w-4 h-4 text-zinc-500" />
              <div>
-               <p className="text-[10px] font-bold text-indigo-400 uppercase">{draggedItem.label}</p>
+               <p className="text-[10px] font-bold text-amber-400 uppercase">{draggedItem.label}</p>
                <p className="text-xs truncate text-zinc-300">{draggedItem.content}</p>
              </div>
           </div>
@@ -339,7 +339,7 @@ function DraggableStrategyChip({ item, onUpdate }: DraggableStrategyChipProps) {
       {...listeners}
       {...attributes}
       className={cn(
-        "relative group bg-zinc-900/30 backdrop-blur-sm border border-white/5 hover:border-indigo-500/30 rounded-lg p-3 cursor-grab active:cursor-grabbing transition-all duration-300",
+        "relative group bg-zinc-900/30 backdrop-blur-sm border border-white/5 hover:border-amber-500/30 rounded-lg p-3 cursor-grab active:cursor-grabbing transition-all duration-300",
         isDragging && "opacity-50 scale-95"
       )}
     >
@@ -350,7 +350,7 @@ function DraggableStrategyChip({ item, onUpdate }: DraggableStrategyChipProps) {
 
       {/* Content */}
       <div className="pl-6">
-        <p className="text-xs font-bold text-indigo-400 mb-2">{item.label}</p>
+        <p className="text-xs font-bold text-amber-400 mb-2">{item.label}</p>
         {isEditing ? (
           <input
             type="text"
@@ -359,7 +359,7 @@ function DraggableStrategyChip({ item, onUpdate }: DraggableStrategyChipProps) {
             onBlur={handleBlur}
             onKeyDown={(e) => e.key === 'Enter' && handleBlur()}
             autoFocus
-            className="w-full bg-zinc-900/50 border border-indigo-500/50 rounded px-2 py-1 text-sm text-zinc-200 outline-none"
+            className="w-full bg-zinc-900/50 border border-amber-500/50 rounded px-2 py-1 text-sm text-zinc-200 outline-none"
           />
         ) : (
           <p
@@ -429,7 +429,7 @@ function AIEmailPreview({
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h2 className="text-xl font-bold text-zinc-100">AI 생성 제안서</h2>
-          <Badge variant="outline" className="text-xs border-indigo-500/50 text-indigo-400">
+          <Badge variant="outline" className="text-xs border-amber-500/50 text-amber-400">
             <Bot className="w-3 h-3 mr-1" />
             AI 생성됨
           </Badge>
@@ -444,8 +444,8 @@ function AIEmailPreview({
       </div>
 
       {/* Info Box */}
-      <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-lg p-4 mb-8 flex items-start gap-3">
-        <Sparkles className="w-5 h-5 text-indigo-400 flex-shrink-0 mt-0.5" />
+      <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-4 mb-8 flex items-start gap-3">
+        <Sparkles className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
         <div className="space-y-1">
           <p className="text-sm text-zinc-200 font-medium">
             {droppedInsights.length}개의 인사이트가 선택되었습니다
@@ -486,8 +486,8 @@ function MergeModal({ isOpen, onClose, mergedContent }: { isOpen: boolean, onClo
         {/* Header */}
         <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-indigo-500/10 rounded-lg">
-              <Sparkles className="w-5 h-5 text-indigo-400" />
+            <div className="p-2 bg-amber-500/10 rounded-lg">
+              <Sparkles className="w-5 h-5 text-amber-400" />
             </div>
             <div>
               <h3 className="text-lg font-bold text-zinc-100">최종 제안서 생성 완료</h3>
@@ -516,7 +516,7 @@ function MergeModal({ isOpen, onClose, mergedContent }: { isOpen: boolean, onClo
           <Button variant="ghost" onClick={onClose}>
             닫기
           </Button>
-          <Button className="bg-indigo-600 hover:bg-indigo-500 text-white">
+          <Button className="bg-amber-600 hover:bg-amber-500 text-white">
             다운로드
           </Button>
         </div>
@@ -569,7 +569,7 @@ function FileUploader({ onFileUpload }: { onFileUpload: (files: File[]) => void 
       className={cn(
         "h-24 border border-dashed rounded-xl flex flex-col items-center justify-center text-zinc-500 transition-all cursor-pointer group",
         isDragging 
-          ? "border-indigo-500 bg-indigo-500/10 text-indigo-400" 
+          ? "border-amber-500 bg-amber-500/10 text-amber-400" 
           : "border-zinc-800 hover:border-zinc-600 hover:bg-zinc-800/30"
       )}
     >
@@ -582,7 +582,7 @@ function FileUploader({ onFileUpload }: { onFileUpload: (files: File[]) => void 
       />
       <div className={cn(
         "p-2 rounded-full mb-1 transition-colors",
-        isDragging ? "bg-indigo-500/20" : "bg-zinc-800/50 group-hover:bg-zinc-800"
+        isDragging ? "bg-amber-500/20" : "bg-zinc-800/50 group-hover:bg-zinc-800"
       )}>
         {isDragging ? (
           <Upload className="w-5 h-5 animate-bounce" />

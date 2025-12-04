@@ -205,7 +205,7 @@ export default function SequencePlaylist({
                   size="sm"
                   onClick={handleMarkAsSent}
                   disabled={isSending}
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white"
+                  className="bg-amber-600 hover:bg-amber-500 text-white"
                 >
                   <Send className="w-4 h-4 mr-2" />
                   {isSending ? '처리 중...' : '발송 완료'}
@@ -235,7 +235,7 @@ export default function SequencePlaylist({
               {/* Toolbar */}
               <div className="mb-6 pb-4 border-b border-white/10">
                 <h3 className="text-lg font-semibold text-zinc-100 flex items-center gap-2">
-                  <Sparkles className="size-5 text-indigo-400" />
+                  <Sparkles className="size-5 text-amber-400" />
                   AI 생성 리포트
                 </h3>
                 <p className="text-xs text-zinc-500 mt-1">
@@ -254,7 +254,7 @@ export default function SequencePlaylist({
                   />
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full text-center py-16">
-                    <Sparkles className="w-12 h-12 text-indigo-500/30 mb-4" />
+                    <Sparkles className="w-12 h-12 text-amber-500/30 mb-4" />
                     <p className="text-zinc-500 mb-2">아직 생성된 리포트가 없습니다</p>
                     <p className="text-xs text-zinc-600">
                       좌측에서 인사이트 칩을 드래그하여 놓으면, AI가 리포트를 생성합니다.
@@ -274,7 +274,7 @@ export default function SequencePlaylist({
               {/* Toolbar */}
               <div className="mb-6 pb-4 border-b border-white/10">
                 <h3 className="text-lg font-semibold text-zinc-100 flex items-center gap-2">
-                  <Mail className="size-5 text-indigo-400" />
+                  <Mail className="size-5 text-amber-400" />
                   메일 초안
                 </h3>
                 <p className="text-xs text-zinc-500 mt-1">
@@ -293,7 +293,7 @@ export default function SequencePlaylist({
                   />
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full text-center py-16">
-                    <Mail className="w-12 h-12 text-indigo-500/30 mb-4" />
+                    <Mail className="w-12 h-12 text-amber-500/30 mb-4" />
                     <p className="text-zinc-500 mb-2">아직 생성된 메일 초안이 없습니다</p>
                     <p className="text-xs text-zinc-600">
                       AI가 분석한 내용을 바탕으로 메일 초안이 자동 생성됩니다.

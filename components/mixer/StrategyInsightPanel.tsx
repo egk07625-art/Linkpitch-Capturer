@@ -37,10 +37,10 @@ export default function StrategyInsightPanel({ stepNumber = 1 }: StrategyInsight
         ) : (
           <motion.div
             layoutId="strategy-panel"
-            className="w-full bg-zinc-900/80 backdrop-blur-xl border border-indigo-500/30 rounded-xl overflow-hidden relative"
+            className="w-full bg-zinc-900/80 backdrop-blur-xl border border-amber-500/30 rounded-xl overflow-hidden relative"
           >
             {/* Background Gradient Mesh */}
-            <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-transparent to-purple-500/5 pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 via-transparent to-purple-500/5 pointer-events-none" />
             
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800/50 bg-zinc-900/50">
@@ -69,9 +69,9 @@ export default function StrategyInsightPanel({ stepNumber = 1 }: StrategyInsight
               </div>
 
               {/* Right: The Strategy */}
-              <div className="p-4 space-y-2 bg-indigo-500/5">
+              <div className="p-4 space-y-2 bg-amber-500/5">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider">The Strategy</span>
+                  <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">The Strategy</span>
                 </div>
                 <p className="text-xs text-zinc-300 leading-relaxed">
                   {guide.strategy}

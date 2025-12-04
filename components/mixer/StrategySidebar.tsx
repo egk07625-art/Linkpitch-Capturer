@@ -50,7 +50,7 @@ export default function StrategySidebar({ currentStep, onStepChange }: StrategyS
                 <div className={cn(
                   "flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors",
                   step.step === currentStep
-                    ? "bg-indigo-600 text-white"
+                    ? "bg-amber-600 text-white"
                     : step.step < currentStep
                     ? "bg-zinc-700 text-zinc-400"
                     : "bg-zinc-800/50 text-zinc-600"
@@ -119,12 +119,12 @@ export default function StrategySidebar({ currentStep, onStepChange }: StrategyS
               </div>
               
               {/* Strategy Box */}
-              <div className="bg-indigo-950/30 border border-indigo-500/20 rounded-lg p-3">
+              <div className="bg-amber-950/30 border border-amber-500/20 rounded-lg p-3">
                 <div className="flex items-start gap-2">
-                  <Check className="w-3 h-3 text-indigo-400 flex-shrink-0 mt-0.5" />
+                  <Check className="w-3 h-3 text-amber-400 flex-shrink-0 mt-0.5" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-indigo-300 mb-1">The Strategy</p>
-                    <p className="text-xs text-indigo-200/80 leading-relaxed">{currentMentor.strategy}</p>
+                    <p className="text-xs font-bold text-amber-300 mb-1">The Strategy</p>
+                    <p className="text-xs text-amber-200/80 leading-relaxed">{currentMentor.strategy}</p>
                   </div>
                 </div>
               </div>

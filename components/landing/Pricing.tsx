@@ -32,11 +32,11 @@ export function Pricing() {
         >
           <div className="relative group">
             {/* Glowing Effect */}
-            <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-3xl blur opacity-25 group-hover:opacity-75 transition duration-1000 group-hover:duration-200" />
+            <div className="absolute -inset-1 bg-gradient-to-r from-amber-500 to-amber-600 rounded-3xl blur opacity-25 group-hover:opacity-75 transition duration-1000 group-hover:duration-200" />
             
             <div className="relative bg-zinc-900 ring-1 ring-white/10 rounded-3xl p-8 md:p-10">
               {/* Recommended Ribbon */}
-              <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/4 rotate-12 bg-indigo-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg border border-indigo-400">
+              <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/4 rotate-12 bg-amber-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg border border-amber-400">
                 Recommended
               </div>
 
@@ -60,7 +60,7 @@ export function Pricing() {
                   "이메일 템플릿 제공"
                 ].map((feature) => (
                   <li key={feature} className="flex items-center text-zinc-300">
-                    <Check className="w-5 h-5 text-indigo-400 mr-3 flex-shrink-0" />
+                    <Check className="w-5 h-5 text-amber-400 mr-3 flex-shrink-0" />
                     {feature}
                   </li>
                 ))}

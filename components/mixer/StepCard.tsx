@@ -30,7 +30,7 @@ export default function StepCard({ step, title, defaultContent = '' }: StepCardP
       ref={setNodeRef}
       className={`
         relative overflow-hidden rounded-2xl border transition-all duration-300
-        ${isOver ? 'border-indigo-500/50 bg-zinc-900/50 ring-1 ring-indigo-500/20' : 'border-white/5 bg-zinc-900/30 backdrop-blur-md'}
+        ${isOver ? 'border-amber-500/50 bg-zinc-900/50 ring-1 ring-amber-500/20' : 'border-white/5 bg-zinc-900/30 backdrop-blur-md'}
       `}
     >
       {/* Header */}
@@ -113,8 +113,8 @@ export default function StepCard({ step, title, defaultContent = '' }: StepCardP
         {isRegenerating && (
           <div className="absolute inset-0 bg-zinc-900/80 backdrop-blur-sm flex items-center justify-center z-10">
             <div className="flex flex-col items-center gap-3">
-              <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-              <span className="text-xs font-medium text-indigo-400">AI Updating...</span>
+              <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+              <span className="text-xs font-medium text-amber-400">AI Updating...</span>
             </div>
           </div>
         )}
@@ -123,7 +123,7 @@ export default function StepCard({ step, title, defaultContent = '' }: StepCardP
       {/* Footer Actions */}
       <div className="px-6 py-4 border-t border-white/5 flex items-center justify-between">
         <button 
-          className="group flex items-center gap-2 text-xs font-medium text-zinc-500 hover:text-indigo-400 transition-colors"
+          className="group flex items-center gap-2 text-xs font-medium text-zinc-500 hover:text-amber-400 transition-colors"
           onClick={() => {
             setIsRegenerating(true);
             setTimeout(() => setIsRegenerating(false), 1500);

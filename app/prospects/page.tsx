@@ -5,16 +5,39 @@
  * 등록된 모든 고객사를 표시하고, 클릭 시 이메일 편집 페이지로 이동
  */
 
-import { getProspects } from "@/app/actions/prospects";
+import { getProspects, type GetProspectsOptions } from "@/app/actions/prospects";
 import { ProspectsList } from "@/components/prospects/prospects-list";
+import { ProspectsFilters } from "@/components/prospects/prospects-filters";
 import type { Prospect } from "@/types/prospect";
 
-export default async function ProspectsPage() {
+interface ProspectsPageProps {
+  searchParams: Promise<{
+    status?: string;
+    search?: string;
+    sort?: string;
+  }>;
+}
+
+export default async function ProspectsPage({
+  searchParams,
+}: ProspectsPageProps) {
+  const params = await searchParams;
   let prospects: Prospect[] = [];
   let errorMessage: string | null = null;
-  
+
+  const options: GetProspectsOptions = {};
+  if (params.status && ["hot", "warm", "cold"].includes(params.status)) {
+    options.status = params.status as "hot" | "warm" | "cold";
+  }
+  if (params.search) {
+    options.search = params.search;
+  }
+  if (params.sort && ["name", "created_at", "last_activity_at"].includes(params.sort)) {
+    options.sort = params.sort as "name" | "created_at" | "last_activity_at";
+  }
+
   try {
-    prospects = await getProspects();
+    prospects = await getProspects(options);
   } catch (error) {
     console.error("Failed to fetch prospects:", {
       error,
@@ -47,7 +70,9 @@ export default async function ProspectsPage() {
           </p>
         </div>
       )}
-      
+
+      <ProspectsFilters />
+
       <ProspectsList prospects={prospects} />
     </div>
   );
