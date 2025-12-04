@@ -15,6 +15,7 @@ interface ProspectsPageProps {
     status?: string;
     search?: string;
     sort?: string;
+    id?: string;
   }>;
 }
 

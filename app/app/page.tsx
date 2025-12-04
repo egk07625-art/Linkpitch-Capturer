@@ -3,8 +3,6 @@
  * @description 대시보드 페이지 - 6-KPI Premium Layout with Real Data
  */
 
-import { ProspectsTable } from "@/components/dashboard/prospects-table";
-import { DashboardKPISection } from "@/components/dashboard/dashboard-kpi-section";
 import { getDashboardKPIs } from "@/actions/dashboard";
 import { getProspects } from "@/app/actions/prospects";
 import { DashboardClient } from "@/components/dashboard/dashboard-client";
@@ -17,7 +15,7 @@ export default async function DashboardPage() {
   ]);
 
   const kpis = kpiResult.data;
-  const prospects = prospectsResult || [];
+  const prospects = prospectsResult;
 
   return (
     <div className="space-y-8">
