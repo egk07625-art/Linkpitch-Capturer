@@ -22,7 +22,7 @@ const navigationItems = [
     icon: LayoutGrid,
   },
   {
-    name: "고객사 관리",
+    name: "클라이언트 관리",
     href: "/prospects",
     icon: Users,
   },

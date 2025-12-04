@@ -2,8 +2,6 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { Search, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { CRMStatus } from "@/types/prospect";
 
@@ -43,135 +41,68 @@ export function ProspectsFilters() {
 
   const hasActiveFilters = status || search;
 
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row gap-3">
-        {/* 검색 */}
-        <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-          <Input
-            placeholder="회사명, URL, 담당자 검색..."
-            value={search}
-            onChange={(e) => handleSearch(e.target.value)}
-            className="pl-9 pr-9"
-          />
-          {search && (
-            <button
-              onClick={() => handleSearch("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-300"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
-        </div>
+  // 필터 탭 스타일 로직 (선택 시 빛나는 효과)
+  const getTabStyle = (tabName: string) => {
+    const baseStyle = "px-6 py-2 rounded-full text-xs font-medium transition-all duration-300 border";
+    
+    const isActive = tabName === 'All' 
+      ? status === null 
+      : status === tabName.toLowerCase();
+    
+    if (isActive) {
+      switch (tabName) {
+        case 'Hot':
+          return `${baseStyle} bg-rose-500/10 border-rose-500/30 text-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.2)]`;
+        case 'Warm':
+          return `${baseStyle} bg-amber-500/10 border-amber-500/30 text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.2)]`;
+        case 'Cold':
+          return `${baseStyle} bg-blue-500/10 border-blue-500/30 text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.2)]`;
+        default: // All
+          return `${baseStyle} bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.4)]`;
+      }
+    }
+    
+    // 비활성 상태
+    return `${baseStyle} border-transparent text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.03]`;
+  };
 
-        {/* 정렬 */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-zinc-400 whitespace-nowrap">정렬:</span>
-          <div className="flex gap-1 border border-zinc-800 rounded-md p-1">
-            <Button
-              variant={sort === "created_at" ? "default" : "ghost"}
-              size="sm"
-              onClick={() => handleSort("created_at")}
-              className={cn(
-                "h-7 text-xs",
-                sort === "created_at" &&
-                  "bg-amber-600 hover:bg-amber-500 text-white",
-              )}
-            >
-              생성일
-            </Button>
-            <Button
-              variant={sort === "name" ? "default" : "ghost"}
-              size="sm"
-              onClick={() => handleSort("name")}
-              className={cn(
-                "h-7 text-xs",
-                sort === "name" &&
-                  "bg-amber-600 hover:bg-amber-500 text-white",
-              )}
-            >
-              이름
-            </Button>
-            <Button
-              variant={sort === "last_activity_at" ? "default" : "ghost"}
-              size="sm"
-              onClick={() => handleSort("last_activity_at")}
-              className={cn(
-                "h-7 text-xs",
-                sort === "last_activity_at" &&
-                  "bg-amber-600 hover:bg-amber-500 text-white",
-              )}
-            >
-              활동일
-            </Button>
-          </div>
+  return (
+    <div className="w-full flex justify-between items-center mb-8">
+      {/* Search Input: 넓이 확장 */}
+      <div className="relative w-[400px] group">
+        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-zinc-300 transition-colors">
+          <Search size={18} strokeWidth={1.5} />
         </div>
+        <input 
+          type="text" 
+          placeholder="Search company, URL..." 
+          value={search}
+          onChange={(e) => handleSearch(e.target.value)}
+          className="w-full bg-[#0a0a0a] border border-white/[0.06] text-white text-sm rounded-xl pl-12 pr-10 py-3.5 
+          focus:outline-none focus:border-zinc-600 focus:bg-[#0f0f0f] focus:ring-1 focus:ring-zinc-600/50 
+          placeholder-zinc-700 transition-all font-light"
+        />
+        {search && (
+          <button
+            onClick={() => handleSearch("")}
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white transition-colors"
+          >
+            <X size={16} strokeWidth={1.5} />
+          </button>
+        )}
       </div>
 
-      {/* 상태 필터 */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-xs text-zinc-400">상태:</span>
-        <Button
-          variant={status === null ? "default" : "outline"}
-          size="sm"
-          onClick={() => handleStatusFilter("all")}
-          className={cn(
-            "h-8",
-            status === null &&
-              "bg-amber-600 hover:bg-amber-500 text-white border-amber-600",
-          )}
-        >
-          전체
-        </Button>
-        <Button
-          variant={status === "hot" ? "default" : "outline"}
-          size="sm"
-          onClick={() => handleStatusFilter("hot")}
-          className={cn(
-            "h-8",
-            status === "hot" &&
-              "bg-rose-500/10 text-rose-500 border-rose-500/20 hover:bg-rose-500/20",
-          )}
-        >
-          Hot
-        </Button>
-        <Button
-          variant={status === "warm" ? "default" : "outline"}
-          size="sm"
-          onClick={() => handleStatusFilter("warm")}
-          className={cn(
-            "h-8",
-            status === "warm" &&
-              "bg-amber-500/10 text-amber-500 border-amber-500/20 hover:bg-amber-500/20",
-          )}
-        >
-          Warm
-        </Button>
-        <Button
-          variant={status === "cold" ? "default" : "outline"}
-          size="sm"
-          onClick={() => handleStatusFilter("cold")}
-          className={cn(
-            "h-8",
-            status === "cold" &&
-              "bg-zinc-700 text-zinc-400 border-zinc-700 hover:bg-zinc-600",
-          )}
-        >
-          Cold
-        </Button>
-
-        {hasActiveFilters && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={clearFilters}
-            className="h-8 text-zinc-400 hover:text-zinc-300 ml-auto"
+      {/* Filter Tabs */}
+      <div className="flex items-center gap-2 bg-[#0a0a0a] p-1.5 rounded-full border border-white/[0.06]">
+        {['All', 'Hot', 'Warm', 'Cold'].map((statusLabel) => (
+          <button 
+            key={statusLabel} 
+            onClick={() => handleStatusFilter(statusLabel === 'All' ? 'all' : statusLabel.toLowerCase() as CRMStatus)}
+            className={getTabStyle(statusLabel)}
           >
-            <X className="h-4 w-4 mr-1" />
-            필터 초기화
-          </Button>
-        )}
+            {statusLabel}
+          </button>
+        ))}
       </div>
     </div>
   );

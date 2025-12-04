@@ -28,16 +28,15 @@ export function ProspectActionsMenu({ prospect }: ProspectActionsMenuProps) {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            size="sm"
+          <button
+            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 text-zinc-600 hover:text-white transition-all"
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
             }}
           >
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
+            <MoreHorizontal size={18} strokeWidth={1.5} />
+          </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
           <DropdownMenuItem

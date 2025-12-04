@@ -78,15 +78,20 @@ export interface GetProspectsOptions {
 export async function getProspects(
   options?: GetProspectsOptions,
 ): Promise<Prospect[]> {
-  const { userId: clerkId } = await auth();
+  try {
+    const { userId: clerkId } = await auth();
 
-  if (!clerkId) {
-    throw new Error("Unauthorized: 사용자 인증이 필요합니다.");
-  }
+    if (!clerkId) {
+      console.error("getProspects: No Clerk user ID");
+      throw new Error("Unauthorized: 사용자 인증이 필요합니다.");
+    }
 
-  const userUuid = await getSupabaseUserId(clerkId);
-  // Service Role 클라이언트 사용 (RLS 우회)
-  const supabase = getServiceRoleClient();
+    console.log("getProspects: Fetching prospects for Clerk ID:", clerkId);
+    const userUuid = await getSupabaseUserId(clerkId);
+    console.log("getProspects: Supabase user UUID:", userUuid);
+    
+    // Service Role 클라이언트 사용 (RLS 우회)
+    const supabase = getServiceRoleClient();
 
   let query = supabase
     .from("prospects")
@@ -124,22 +129,33 @@ export async function getProspects(
     query = query.limit(options.limit);
   }
 
-  const { data, error } = await query;
+    const { data, error } = await query;
 
-  if (error) {
-    console.error("Prospect 조회 실패:", {
+    if (error) {
+      console.error("Prospect 조회 실패:", {
+        error,
+        errorCode: error.code,
+        errorMessage: error.message,
+        errorDetails: error.details,
+        errorHint: error.hint,
+        userUuid,
+        options,
+      });
+      throw new Error(`Prospect 조회 실패: ${error.message}`);
+    }
+
+    console.log("getProspects: Successfully fetched", data?.length || 0, "prospects");
+    return (data || []) as Prospect[];
+  } catch (error) {
+    console.error("getProspects: Unexpected error:", {
       error,
-      errorCode: error.code,
-      errorMessage: error.message,
-      errorDetails: error.details,
-      errorHint: error.hint,
-      userUuid,
+      errorMessage: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
       options,
     });
-    throw new Error(`Prospect 조회 실패: ${error.message}`);
+    // 에러를 다시 throw하여 상위에서 처리할 수 있도록
+    throw error;
   }
-
-  return (data || []) as Prospect[];
 }
 
 /**

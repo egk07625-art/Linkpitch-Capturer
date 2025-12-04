@@ -39,9 +39,8 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Linkpitch - AI 수주 비서",
   description: "퍼포먼스 마케터를 위한 콜드메일·시퀀스 비서",
-  icons: {
-    icon: "/favicon.ico",
-  },
+  // favicon.ico는 app/favicon.ico에 있으면 Next.js가 자동으로 인식합니다
+  // metadata에서 명시적으로 설정할 필요 없음
 };
 
 // Clerk 한국어 localization 커스터마이징
