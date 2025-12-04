@@ -36,6 +36,9 @@ interface ProspectsTableProps {
   limit?: number;
   showViewAll?: boolean;
   campaignStats?: Record<string, CampaignStats>;
+  emptyMessage?: string;
+  emptyActionLabel?: string;
+  emptyActionHref?: string;
 }
 
 const statusConfig: Record<CRMStatus, { label: string; className: string }> = {
@@ -75,6 +78,9 @@ export function ProspectsTable({
   limit,
   showViewAll = true,
   campaignStats = {},
+  emptyMessage = "분석할 고객사가 없습니다",
+  emptyActionLabel = "분석 시작하기",
+  emptyActionHref = "/app/create",
 }: ProspectsTableProps) {
   const router = useRouter();
 
@@ -128,10 +134,12 @@ export function ProspectsTable({
         <div className="relative">
           <div className="absolute inset-0 bg-gradient-to-r from-amber-500/20 to-yellow-500/20 blur-3xl" />
           <div className="relative space-y-3 text-center">
-            <p className="text-sm text-zinc-400">분석할 고객사가 없습니다</p>
-            <Button asChild className="premium-button shadow-lg shadow-amber-500/20">
-              <Link href="/app/create">분석 시작하기</Link>
-            </Button>
+            <p className="text-sm text-zinc-400">{emptyMessage}</p>
+            {emptyActionHref && (
+              <Button asChild className="premium-button shadow-lg shadow-amber-500/20">
+                <Link href={emptyActionHref}>{emptyActionLabel}</Link>
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -364,30 +372,17 @@ export function ProspectsTable({
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* 헤더 바 */}
-      <div className="px-6 py-4 flex items-center justify-between border-b border-white/10 shrink-0">
-        <div className="flex flex-col gap-1">
-          <h2 className="text-lg font-bold text-white tracking-tight">
-            {filterStatus === "hot"
-              ? "당장 연락할 곳"
-              : filterStatus === "warm"
-                ? "우선순위 고객"
-                : "우선순위 고객"}
-          </h2>
-          <p className="text-sm text-zinc-400">
-            {displayedProspects.length}개의 고객사
-            {filterStatus && ` (${filterStatus === "hot" ? "Hot" : "Hot/Warm"}만 표시)`}
-          </p>
-        </div>
-        {showViewAll && (
+      {showViewAll && (
+        <div className="px-6 py-4 flex items-center justify-end border-b border-white/10 shrink-0">
           <a href="/prospects" className="text-sm font-semibold text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1 group">
             모두 보기
             <span className="group-hover:translate-x-0.5 transition-transform">→</span>
           </a>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Grid 헤더 */}
-      <div className="grid grid-cols-12 gap-6 px-6 py-3 border-b border-white/10 bg-[#1C1C1E] text-sm font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap shrink-0">
+      <div className="grid grid-cols-12 gap-6 px-6 py-4 border-b border-white/10 bg-[#1C1C1E] text-base font-bold text-zinc-300 uppercase tracking-wider whitespace-nowrap shrink-0">
         <div className="col-span-3">회사 정보</div>
         <div className="col-span-2">담당자</div>
         <div className="col-span-2">연락처</div>
@@ -419,7 +414,7 @@ export function ProspectsTable({
               key={prospect.id}
               className="grid grid-cols-12 gap-6 px-6 py-6 items-center border-b border-white/10 hover:bg-white/5 transition-all group cursor-pointer"
               onClick={() => {
-                router.push(`/prospects/${prospect.id}/mix`);
+                router.push(`/prospects?id=${prospect.id}`);
               }}
             >
               {/* 1. 회사 정보 (3칸) */}

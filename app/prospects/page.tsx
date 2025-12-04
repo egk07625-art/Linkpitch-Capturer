@@ -1,13 +1,13 @@
 /**
  * @file app/prospects/page.tsx
- * @description 고객사 목록 페이지 - 마스터-디테일 레이아웃
+ * @description 고객사 목록 페이지 - 대시보드와 동일한 디자인으로 통일
  *
- * 좌측: 고객사 리스트 (검색/필터 포함)
- * 우측: 선택된 고객사 상세 정보 및 이메일 히스토리
+ * 대시보드와 완벽하게 동일한 "Family Look"을 적용한 통합 뷰
  */
 
 import { getProspects, type GetProspectsOptions } from "@/app/actions/prospects";
-import ClientDashboard from "@/components/clients/client-dashboard";
+import { getProspectsCampaignStats } from "@/actions/prospects";
+import ClientsUnifiedView from "@/components/clients/clients-unified-view";
 import type { Prospect } from "@/types/prospect";
 
 interface ProspectsPageProps {
@@ -65,11 +65,16 @@ export default async function ProspectsPage({
     prospects = [];
   }
 
-  // URL에서 선택된 고객사 ID 추출 (필요시)
+  // 캠페인 통계 데이터 조회 (대시보드와 동일한 방식)
+  const prospectIds = prospects.map((p) => p.id);
+  const campaignStatsResult = await getProspectsCampaignStats(prospectIds);
+  const campaignStats = campaignStatsResult.data || {};
+
+  // URL에서 선택된 고객사 ID 추출 (쿼리 파라미터)
   const selectedId = params.id || undefined;
 
   return (
-    <div className="h-screen">
+    <div className="h-full w-full bg-[#050505] text-zinc-100 font-sans overflow-hidden flex flex-col">
       {/* Error Message */}
       {errorMessage && (
         <div className="fixed top-4 right-4 z-50 rounded-xl border border-red-500/20 bg-red-500/10 p-4 max-w-md">
@@ -80,10 +85,28 @@ export default async function ProspectsPage({
         </div>
       )}
 
-      <ClientDashboard 
-        initialClients={prospects}
-        selectedClientId={selectedId}
-      />
+      {/* 메인 스크롤 영역 */}
+      <div className="flex-1 w-full h-full overflow-y-auto">
+        {/* 컨텐츠 래퍼: 최대 너비 1500px로 제한하여 리스트 뷰 최적 밀도 달성 */}
+        <div className="w-full max-w-[1500px] mx-auto px-6 py-10 md:px-8 md:py-12 flex flex-col gap-6">
+          {/* Header 타이틀 영역 */}
+          <header className="flex flex-col gap-2 px-1">
+            <h1 className="text-4xl md:text-5xl font-bold text-white tracking-tight">
+              Clients
+            </h1>
+            <p className="text-lg text-zinc-500">
+              고객사를 관리하고 이메일 캠페인 성과를 추적하세요.
+            </p>
+          </header>
+
+          {/* 통합 뷰 컴포넌트 */}
+          <ClientsUnifiedView
+            prospects={prospects}
+            campaignStats={campaignStats}
+            selectedClientId={selectedId}
+          />
+        </div>
+      </div>
     </div>
   );
 }
