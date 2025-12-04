@@ -274,6 +274,17 @@ export async function updateProspect(
     throw new Error("Unauthorized: 사용자 인증이 필요합니다.");
   }
 
+  // UUID 형식 검증
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(id)) {
+    console.error("잘못된 UUID 형식:", {
+      id,
+      idType: typeof id,
+      idLength: id?.length,
+    });
+    throw new Error(`잘못된 Prospect ID 형식입니다: ${id}`);
+  }
+
   const userUuid = await getSupabaseUserId(clerkId);
   // Service Role 클라이언트 사용 (RLS 우회)
   const supabase = getServiceRoleClient();
@@ -312,6 +323,8 @@ export async function updateProspect(
     updateData.contact_name = input.contact_name;
   if (input.contact_email !== undefined)
     updateData.contact_email = input.contact_email;
+  if (input.contact_phone !== undefined)
+    updateData.contact_phone = input.contact_phone;
   if (input.url !== undefined) updateData.url = input.url;
   if (input.memo !== undefined) updateData.memo = input.memo;
   if (input.vision_data !== undefined)

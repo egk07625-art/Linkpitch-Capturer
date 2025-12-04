@@ -1,6 +1,7 @@
 -- ================================================================
--- LinkPitch MVP v8.0 (Integrated Schema)
+-- LinkPitch MVP v8.1 (Integrated Schema)
 -- 변경사항: 
+--   - contact_phone 컬럼 추가 (prospects 테이블) - [수정됨]
 --   - credits 컬럼 추가 (users 테이블)
 --   - RLS 비활성화 (개발 단계)
 --   - 캐시 정리 함수 추가
@@ -104,6 +105,10 @@ CREATE TABLE prospects (
     name VARCHAR(255) NOT NULL,
     contact_name VARCHAR(255),
     contact_email VARCHAR(255), 
+    
+    -- [수정됨] 연락처 컬럼 추가
+    contact_phone VARCHAR(50), 
+
     url VARCHAR(500),
     memo TEXT,
     crm_status VARCHAR(50) DEFAULT 'cold' NOT NULL, 
@@ -313,6 +318,10 @@ CREATE INDEX idx_prospects_crm_status ON prospects(user_id, crm_status);
 CREATE INDEX idx_prospects_crm_dashboard ON prospects(user_id, crm_status, last_activity_at DESC NULLS LAST);
 CREATE INDEX idx_prospects_store_name ON prospects(store_name) WHERE store_name IS NOT NULL;
 CREATE INDEX idx_prospects_email ON prospects(contact_email) WHERE contact_email IS NOT NULL;
+
+-- [수정됨] 전화번호 검색을 위한 인덱스 추가
+CREATE INDEX idx_prospects_phone ON prospects(contact_phone) WHERE contact_phone IS NOT NULL;
+
 CREATE INDEX idx_prospects_tier ON prospects(tier) WHERE tier IS NOT NULL;
 CREATE INDEX idx_prospects_category ON prospects(category) WHERE category IS NOT NULL;
 
@@ -530,30 +539,16 @@ ANALYZE report_tracking_logs;
 DO $$ 
 BEGIN 
     RAISE NOTICE '══════════════════════════════════════════════════════════';
-    RAISE NOTICE '✅ LinkPitch MVP v8.0 (Integrated Schema) 설치 완료!';
+    RAISE NOTICE '✅ LinkPitch MVP v8.1 (Integrated Schema) 설치 완료!';
     RAISE NOTICE '══════════════════════════════════════════════════════════';
     RAISE NOTICE '';
     RAISE NOTICE '📊 주요 기능:';
+    RAISE NOTICE '   • contact_phone 컬럼 추가: prospects 테이블';
     RAISE NOTICE '   • credits 컬럼: 사용자 무료 크레딧 시스템 (기본값 3)';
     RAISE NOTICE '   • generated_emails: 리포트 뷰어 완벽 연동';
     RAISE NOTICE '   • 캐시 정리 함수: cleanup_expired_cache()';
     RAISE NOTICE '';
-    RAISE NOTICE '🔗 n8n 워크플로우 연동:';
-    RAISE NOTICE '   • 워크플로우 1 (생성): DB 저장 노드 필드 매핑 필요';
-    RAISE NOTICE '   • 워크플로우 2 (수정): 기존 정보 조회 → 디자인 재적용 → DB 업데이트';
-    RAISE NOTICE '';
     RAISE NOTICE '⚡️ 최적화 완료:';
-    RAISE NOTICE '   • 제약조건: 16개 (데이터 무결성 강화)';
-    RAISE NOTICE '   • 인덱스: 31개 (쿼리 성능 최적화)';
-    RAISE NOTICE '   • JSONB GIN 인덱스: 4개 (검색 성능 향상)';
-    RAISE NOTICE '   • UNIQUE 제약조건: generated_emails (prospect_id, step_number)';
-    RAISE NOTICE '   • 커버링 인덱스: idx_emails_prospect_step_meta';
-    RAISE NOTICE '';
-    RAISE NOTICE '🔒 보안 설정:';
-    RAISE NOTICE '   • RLS: 개발 단계에서 비활성화';
-    RAISE NOTICE '   • 프로덕션 배포 전 RLS 활성화 필수';
-    RAISE NOTICE '   • 모든 외래키 제약조건 완료';
-    RAISE NOTICE '   • CHECK 제약조건으로 데이터 검증 강화';
-    RAISE NOTICE '   • UNIQUE 제약조건으로 중복 방지';
+    RAISE NOTICE '   • 인덱스: idx_prospects_phone 추가됨';
     RAISE NOTICE '══════════════════════════════════════════════════════════';
 END $$;

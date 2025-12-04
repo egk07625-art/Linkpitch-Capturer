@@ -24,6 +24,7 @@ import {
   Save,
   Phone,
   Edit,
+  Trash2,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ko } from "date-fns/locale";
@@ -43,9 +44,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ProspectEditDialog } from "@/components/prospects/prospect-edit-dialog";
+import { ProspectDeleteDialog } from "@/components/prospects/prospect-delete-dialog";
 
 interface ClientDashboardProps {
   /** 초기 고객사 목록 */
@@ -215,6 +218,8 @@ export default function ClientDashboard({
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedClientIdForEdit, setSelectedClientIdForEdit] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedClientIdForDelete, setSelectedClientIdForDelete] = useState<string | null>(null);
 
   // 고객사 등록 폼
   const {
@@ -226,59 +231,11 @@ export default function ClientDashboard({
     resolver: zodResolver(prospectSchema),
   });
 
-  // 샘플 데이터 (실제 데이터 연동 시 삭제하세요)
-  const sampleClients: Prospect[] = initialClients.length > 0
-    ? initialClients
-    : [
-        {
-          id: "1",
-          user_id: "",
-          name: "올리브영",
-          contact_name: "홍길동",
-          contact_email: "egk5112@gmail.com",
-          url: "https://smartstore.naver.com/applehyangfarm/products/9380057523",
-          memo: "사과 판매 애플향농원",
-          crm_status: "cold",
-          max_scroll_depth: 0,
-          max_duration_seconds: 0,
-          visit_count: 0,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        {
-          id: "2",
-          user_id: "",
-          name: "무신사",
-          contact_name: "김철수",
-          contact_email: "kim@musinsa.com",
-          url: "https://www.musinsa.com",
-          memo: "",
-          crm_status: "warm",
-          max_scroll_depth: 0,
-          max_duration_seconds: 0,
-          visit_count: 0,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        {
-          id: "3",
-          user_id: "",
-          name: "쿠팡",
-          contact_name: "이영희",
-          contact_email: "lee@coupang.com",
-          url: "https://www.coupang.com",
-          memo: "",
-          crm_status: "hot",
-          max_scroll_depth: 0,
-          max_duration_seconds: 0,
-          visit_count: 0,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-      ];
+  // 실제 데이터만 사용
+  const clients: Prospect[] = initialClients || [];
 
   // 필터링 및 검색
-  const filteredClients = sampleClients.filter((client) => {
+  const filteredClients = clients.filter((client) => {
     const matchesTab =
       activeTab === "All" ||
       client.crm_status.toUpperCase() === activeTab.toUpperCase();
@@ -344,8 +301,10 @@ export default function ClientDashboard({
     };
   };
 
-  const handleEmailHistoryClick = (clientId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleEmailHistoryClick = (clientId: string, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
     setSelectedClientIdForHistory(clientId);
     setEmailHistoryOpen(true);
   };
@@ -380,8 +339,10 @@ export default function ClientDashboard({
     }
   };
 
-  const handleMemoClick = (clientId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleMemoClick = (clientId: string, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
     const client = sortedClients.find(c => c.id === clientId);
     setSelectedClientIdForMemo(clientId);
     const history = parseMemoHistory(client?.memo);
@@ -392,10 +353,48 @@ export default function ClientDashboard({
     setMemoOpen(true);
   };
 
-  const handleEditClick = (clientId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleEditClick = (clientId: string, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    
+    // UUID 형식 검증
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(clientId)) {
+      console.error("잘못된 클라이언트 ID:", {
+        clientId,
+        clientIdType: typeof clientId,
+        clientIdLength: clientId?.length,
+        allClientIds: sortedClients.map(c => ({ id: c.id, name: c.name })),
+      });
+      toast.error(`잘못된 고객사 ID입니다: ${clientId}`);
+      return;
+    }
+    
     setSelectedClientIdForEdit(clientId);
     setEditDialogOpen(true);
+  };
+
+  const handleDeleteClick = (clientId: string, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    
+    // UUID 형식 검증
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(clientId)) {
+      console.error("잘못된 클라이언트 ID:", {
+        clientId,
+        clientIdType: typeof clientId,
+        clientIdLength: clientId?.length,
+        allClientIds: sortedClients.map(c => ({ id: c.id, name: c.name })),
+      });
+      toast.error(`잘못된 고객사 ID입니다: ${clientId}`);
+      return;
+    }
+    
+    setSelectedClientIdForDelete(clientId);
+    setDeleteDialogOpen(true);
   };
 
   const handleLoadMemo = (memoId: string) => {
@@ -430,12 +429,6 @@ export default function ClientDashboard({
       const memoJson = JSON.stringify(updatedHistory);
       await updateProspect(selectedClientIdForMemo, { memo: memoJson });
       toast.success("메모가 저장되었습니다.");
-      
-      // 로컬 상태 업데이트
-      const clientIndex = sampleClients.findIndex(c => c.id === selectedClientIdForMemo);
-      if (clientIndex !== -1) {
-        sampleClients[clientIndex].memo = memoJson;
-      }
       
       // 히스토리 업데이트
       setMemoHistory(updatedHistory);
@@ -630,9 +623,22 @@ export default function ClientDashboard({
                       {/* 이메일 컬럼 (독립) */}
                       <div className="col-span-2 flex flex-col justify-center">
                         {client.contact_email ? (
-                          <div className="flex items-center gap-2 mb-1">
+                          <div 
+                            className="flex items-center gap-2 mb-1 cursor-text select-all"
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              try {
+                                await navigator.clipboard.writeText(client.contact_email!);
+                                toast.success("이메일이 복사되었습니다");
+                              } catch (err) {
+                                console.error("복사 실패:", err);
+                                toast.error("복사에 실패했습니다");
+                              }
+                            }}
+                            title="클릭하여 복사"
+                          >
                             <Mail className="w-3.5 h-3.5 text-gray-500" />
-                            <span className="text-sm text-gray-400 font-mono tracking-tight">
+                            <span className="text-sm text-gray-400 font-mono tracking-tight hover:text-white transition-colors">
                               {client.contact_email}
                             </span>
                           </div>
@@ -644,9 +650,22 @@ export default function ClientDashboard({
                       {/* 연락처 컬럼 (전화번호) */}
                       <div className="col-span-2 flex flex-col justify-center">
                         {client.contact_phone ? (
-                          <div className="flex items-center gap-2 mb-1">
+                          <div 
+                            className="flex items-center gap-2 mb-1 cursor-text select-all"
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              try {
+                                await navigator.clipboard.writeText(client.contact_phone!);
+                                toast.success("전화번호가 복사되었습니다");
+                              } catch (err) {
+                                console.error("복사 실패:", err);
+                                toast.error("복사에 실패했습니다");
+                              }
+                            }}
+                            title="클릭하여 복사"
+                          >
                             <Phone className="w-3.5 h-3.5 text-gray-500" />
-                            <span className="text-sm text-gray-400 font-mono tracking-tight">
+                            <span className="text-sm text-gray-400 font-mono tracking-tight hover:text-white transition-colors">
                               {client.contact_phone}
                             </span>
                           </div>
@@ -729,25 +748,45 @@ export default function ClientDashboard({
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-800">
                             <DropdownMenuItem
-                              onClick={(e) => handleEditClick(client.id, e)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditClick(client.id, e);
+                              }}
                               className="cursor-pointer"
                             >
                               <Edit size={14} className="mr-2" />
                               수정
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              onClick={(e) => handleEmailHistoryClick(client.id, e)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEmailHistoryClick(client.id, e);
+                              }}
                               className="cursor-pointer"
                             >
                               <Mail size={14} className="mr-2" />
                               이메일 히스토리
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              onClick={(e) => handleMemoClick(client.id, e)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleMemoClick(client.id, e);
+                              }}
                               className="cursor-pointer"
                             >
                               <FileText size={14} className="mr-2" />
                               메모
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator className="bg-zinc-800" />
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteClick(client.id, e);
+                              }}
+                              className="cursor-pointer text-red-400 focus:text-red-300 focus:bg-red-500/10"
+                            >
+                              <Trash2 size={14} className="mr-2" />
+                              삭제
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -1094,18 +1133,54 @@ export default function ClientDashboard({
       </Sheet>
 
       {/* Edit Prospect Dialog */}
-      {selectedClientIdForEdit && (
-        <ProspectEditDialog
-          prospect={sortedClients.find(c => c.id === selectedClientIdForEdit)!}
-          open={editDialogOpen}
-          onOpenChange={(open) => {
-            setEditDialogOpen(open);
-            if (!open) {
-              setSelectedClientIdForEdit(null);
-            }
-          }}
-        />
-      )}
+      {selectedClientIdForEdit && (() => {
+        const prospectToEdit = sortedClients.find(c => c.id === selectedClientIdForEdit);
+        if (!prospectToEdit) {
+          console.error("Prospect를 찾을 수 없습니다:", {
+            selectedClientIdForEdit,
+            availableIds: sortedClients.map(c => c.id),
+            sortedClientsLength: sortedClients.length,
+          });
+          return null;
+        }
+        return (
+          <ProspectEditDialog
+            prospect={prospectToEdit}
+            open={editDialogOpen}
+            onOpenChange={(open) => {
+              setEditDialogOpen(open);
+              if (!open) {
+                setSelectedClientIdForEdit(null);
+              }
+            }}
+          />
+        );
+      })()}
+
+      {/* Delete Prospect Dialog */}
+      {selectedClientIdForDelete && (() => {
+        const prospectToDelete = sortedClients.find(c => c.id === selectedClientIdForDelete);
+        if (!prospectToDelete) {
+          console.error("Prospect를 찾을 수 없습니다:", {
+            selectedClientIdForDelete,
+            availableIds: sortedClients.map(c => c.id),
+            sortedClientsLength: sortedClients.length,
+          });
+          return null;
+        }
+        return (
+          <ProspectDeleteDialog
+            prospect={prospectToDelete}
+            open={deleteDialogOpen}
+            onOpenChange={(open) => {
+              setDeleteDialogOpen(open);
+              if (!open) {
+                setSelectedClientIdForDelete(null);
+              }
+            }}
+          />
+        );
+      })()}
 
       {/* Add Prospect Modal */}
       {isAddModalOpen && (
