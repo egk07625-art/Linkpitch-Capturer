@@ -69,7 +69,7 @@ export default async function ProspectsPage({
   const selectedId = params.id || undefined;
 
   return (
-    <div className="h-screen -m-6">
+    <div className="h-screen">
       {/* Error Message */}
       {errorMessage && (
         <div className="fixed top-4 right-4 z-50 rounded-xl border border-red-500/20 bg-red-500/10 p-4 max-w-md">

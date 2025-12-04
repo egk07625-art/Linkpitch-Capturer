@@ -25,8 +25,8 @@ export function AppShell({ children }: AppShellProps) {
       </div>
 
       {/* Main Content */}
-      <main className="md:pl-64 pt-14 md:pt-0 min-h-screen max-w-none">
-        <div className="p-6">{children}</div>
+      <main className="md:pl-64 pt-14 md:pt-0 min-h-screen max-w-none flex flex-col">
+        <div className="flex-1 w-full h-full overflow-y-auto bg-[#050505]">{children}</div>
       </main>
     </div>
   );

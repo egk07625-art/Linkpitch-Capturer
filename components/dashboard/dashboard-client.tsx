@@ -40,21 +40,27 @@ export function DashboardClient({
   });
 
   return (
-    <>
-      <DashboardKPISection
-        kpis={kpis}
-        selectedFilter={selectedFilter}
-        onFilterChange={setSelectedFilter}
-      />
+    <div className="flex flex-col">
+      {/* 상단 KPI 영역 */}
+      <div className="pb-8 border-b border-white/10">
+        <DashboardKPISection
+          kpis={kpis}
+          selectedFilter={selectedFilter}
+          onFilterChange={setSelectedFilter}
+        />
+      </div>
 
-      <ProspectsTable
-        prospects={filteredProspects}
-        filterStatus={selectedFilter || undefined}
-        limit={selectedFilter ? undefined : 5}
-        showViewAll={true}
-        campaignStats={filteredCampaignStats}
-      />
-    </>
+      {/* 하단 리스트 영역 */}
+      <div className="flex-1 flex flex-col min-h-0 pt-8">
+        <ProspectsTable
+          prospects={filteredProspects}
+          filterStatus={selectedFilter || undefined}
+          limit={selectedFilter ? undefined : 5}
+          showViewAll={true}
+          campaignStats={filteredCampaignStats}
+        />
+      </div>
+    </div>
   );
 }
 

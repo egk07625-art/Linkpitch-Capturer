@@ -32,6 +32,15 @@ const themeStyles = {
   rose: "shadow-rose-500/5 hover:shadow-rose-500/10",
 };
 
+const themeColors = {
+  indigo: "text-indigo-500/80",
+  sky: "text-sky-500/80",
+  teal: "text-teal-500/80",
+  amber: "text-amber-500/80",
+  violet: "text-violet-500/80",
+  rose: "text-rose-500/80",
+};
+
 function KPICard({
   title,
   description,
@@ -43,30 +52,40 @@ function KPICard({
   onClick,
   isSelected,
 }: KPICardProps) {
+  const isHotLead = theme === "rose" && isSelected;
+  
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <div
           onClick={onClick}
           className={cn(
-            "relative overflow-hidden rounded-lg p-4 transition-all duration-300",
-            "glass-panel gradient-border",
-            "hover:-translate-y-1 hover:bg-white/[0.05] hover:shadow-2xl",
+            "relative overflow-hidden rounded-3xl p-8 transition-all duration-300",
+            "bg-black/20 border border-[#333]/50",
+            "hover:-translate-y-1 hover:bg-black/30 hover:shadow-2xl",
             themeStyles[theme],
             onClick && "cursor-pointer",
-            isSelected && "gold-glow ring-1 ring-amber-500/50 bg-white/[0.08]",
+            isHotLead && "border-red-900/30 bg-red-500/5",
+            isSelected && !isHotLead && "ring-1 ring-amber-500/50 bg-white/[0.08]",
           )}
         >
-          <div className="flex items-start justify-between mb-3">
-            <p className="text-[11px] uppercase tracking-wider text-zinc-400 font-semibold">
+          <div className="flex items-start justify-between mb-6">
+            <p className={cn(
+              "text-base font-medium",
+              isHotLead ? "text-red-400" : "text-zinc-400"
+            )}>
               {title}
             </p>
-            <Icon className={cn("size-4 text-zinc-600", pulse && "animate-pulse")} />
+            <Icon className={cn(
+              "size-5",
+              isHotLead ? "text-red-500/80" : themeColors[theme],
+              pulse && "animate-pulse"
+            )} />
           </div>
 
           <div className="flex items-baseline">
             {valueComponent || (
-              <span className="text-2xl xl:text-3xl font-bold tracking-tight text-zinc-50">
+              <span className="text-5xl font-bold tracking-tight text-zinc-50">
                 {value}
               </span>
             )}
@@ -76,7 +95,7 @@ function KPICard({
       <TooltipContent
         side="bottom"
         sideOffset={10}
-        className="bg-zinc-800 text-zinc-300 text-xs px-3 py-2 rounded-md shadow-xl border border-white/5 max-w-[180px] break-keep text-center"
+        className="bg-zinc-800 text-zinc-100 border-zinc-700 px-4 py-3 text-sm font-medium leading-relaxed shadow-xl whitespace-nowrap"
       >
         {description}
       </TooltipContent>
@@ -122,15 +141,15 @@ export function DashboardKPISection({
       description: "고객이 리포트 페이지에 머무른 평균 시간입니다.",
       value: "",
       valueComponent: (
-        <div className="flex items-baseline gap-0.5">
-          <span className="text-2xl xl:text-3xl font-bold text-zinc-50">
+        <div className="flex items-baseline gap-1">
+          <span className="text-5xl font-bold text-zinc-50">
             {Math.floor((kpis?.avgDurationSeconds ?? 0) / 60)}
           </span>
-          <span className="text-xs font-medium text-zinc-500 mr-1">m</span>
-          <span className="text-2xl xl:text-3xl font-bold text-zinc-50">
+          <span className="text-xl text-zinc-500">m</span>
+          <span className="text-5xl font-bold text-zinc-50">
             {(kpis?.avgDurationSeconds ?? 0) % 60}
           </span>
-          <span className="text-xs font-medium text-zinc-500">s</span>
+          <span className="text-xl text-zinc-500">s</span>
         </div>
       ),
       icon: Timer,
@@ -157,7 +176,7 @@ export function DashboardKPISection({
 
   return (
     <TooltipProvider delayDuration={200}>
-      <section className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {kpiCards.map((card, index) => (
           <KPICard key={index} {...card} />
         ))}
