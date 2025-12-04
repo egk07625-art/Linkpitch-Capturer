@@ -1,6 +1,10 @@
 -- ================================================================
--- LinkPitch MVP v7.8 (Production Ready)
--- 변경사항: tier 컬럼 추가, NOT NULL 기본값 적용, 인덱스 최적화
+-- LinkPitch MVP v8.0 (Integrated Schema)
+-- 변경사항: 
+--   - credits 컬럼 추가 (users 테이블)
+--   - RLS 비활성화 (개발 단계)
+--   - 캐시 정리 함수 추가
+--   - 모든 마이그레이션 통합
 -- ================================================================
 
 -- [1] 초기화 (순서대로 삭제)
@@ -33,11 +37,13 @@ CREATE TABLE users (
     clerk_id TEXT NOT NULL,
     email VARCHAR(255) NOT NULL,
     name VARCHAR(255),
+    credits INT NOT NULL DEFAULT 3,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     CONSTRAINT pk_users PRIMARY KEY (id),
     CONSTRAINT uq_users_clerk_id UNIQUE (clerk_id),
-    CONSTRAINT uq_users_email UNIQUE (email)
+    CONSTRAINT uq_users_email UNIQUE (email),
+    CONSTRAINT chk_users_credits CHECK (credits >= 0)
 );
 
 CREATE TABLE plans (
@@ -281,6 +287,7 @@ CREATE INDEX idx_emails_subjects_gin ON generated_emails USING GIN (email_subjec
 -- Users
 CREATE INDEX idx_users_clerk_id ON users(clerk_id);
 CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_users_credits ON users(credits);
 
 -- Plans
 CREATE INDEX idx_plans_active ON plans(is_active) WHERE is_active = true;
@@ -420,6 +427,70 @@ WHEN (NEW.cache_id IS NOT NULL)
 EXECUTE FUNCTION update_cache_access();
 
 -- ================================================================
+-- [11] 유틸리티 함수: 캐시 정리 (Cron Job용)
+-- ================================================================
+
+CREATE OR REPLACE FUNCTION cleanup_expired_cache()
+RETURNS TABLE(deleted_count INT) AS $$
+DECLARE
+    row_count INT;
+BEGIN
+    DELETE FROM site_analysis_cache
+    WHERE last_accessed_at < NOW() - INTERVAL '30 days';
+    
+    GET DIAGNOSTICS row_count = ROW_COUNT;
+    RETURN QUERY SELECT row_count;
+END;
+$$ LANGUAGE plpgsql;
+
+COMMENT ON FUNCTION cleanup_expired_cache IS '30일 이상 미사용 캐시 삭제 (크론잡으로 실행)';
+
+-- ================================================================
+-- [12] 개발 단계 RLS 비활성화
+-- ================================================================
+--
+-- 개발 단계에서는 RLS를 비활성화하여
+-- 권한 관련 에러 없이 개발을 진행합니다.
+--
+-- ⚠️ 중요: 프로덕션 배포 전에 반드시 RLS 활성화 필요
+-- ================================================================
+
+-- 모든 테이블의 RLS 비활성화
+ALTER TABLE users DISABLE ROW LEVEL SECURITY;
+ALTER TABLE user_plans DISABLE ROW LEVEL SECURITY;
+ALTER TABLE prospects DISABLE ROW LEVEL SECURITY;
+ALTER TABLE sequences DISABLE ROW LEVEL SECURITY;
+ALTER TABLE step DISABLE ROW LEVEL SECURITY;
+ALTER TABLE step_generations DISABLE ROW LEVEL SECURITY;
+ALTER TABLE user_assets DISABLE ROW LEVEL SECURITY;
+ALTER TABLE site_analysis_cache DISABLE ROW LEVEL SECURITY;
+ALTER TABLE generated_emails DISABLE ROW LEVEL SECURITY;
+ALTER TABLE report_tracking_logs DISABLE ROW LEVEL SECURITY;
+ALTER TABLE plans DISABLE ROW LEVEL SECURITY;
+ALTER TABLE step_templates DISABLE ROW LEVEL SECURITY;
+
+-- 기존 RLS 정책 삭제 (있는 경우)
+DROP POLICY IF EXISTS "users_select_own" ON users;
+DROP POLICY IF EXISTS "users_insert_own" ON users;
+DROP POLICY IF EXISTS "users_update_own" ON users;
+DROP POLICY IF EXISTS "prospects_select_own" ON prospects;
+DROP POLICY IF EXISTS "prospects_insert_own" ON prospects;
+DROP POLICY IF EXISTS "prospects_update_own" ON prospects;
+DROP POLICY IF EXISTS "prospects_delete_own" ON prospects;
+DROP POLICY IF EXISTS "sequences_select_own" ON sequences;
+DROP POLICY IF EXISTS "sequences_insert_own" ON sequences;
+DROP POLICY IF EXISTS "sequences_update_own" ON sequences;
+DROP POLICY IF EXISTS "sequences_delete_own" ON sequences;
+DROP POLICY IF EXISTS "step_select_own" ON step;
+DROP POLICY IF EXISTS "step_insert_own" ON step;
+DROP POLICY IF EXISTS "step_update_own" ON step;
+DROP POLICY IF EXISTS "step_delete_own" ON step;
+DROP POLICY IF EXISTS "report_events_select_own" ON report_events;
+DROP POLICY IF EXISTS "report_events_insert_own" ON report_events;
+DROP POLICY IF EXISTS "generation_logs_select_own" ON generation_logs;
+DROP POLICY IF EXISTS "generation_logs_insert_own" ON generation_logs;
+
+-- ================================================================
 -- [9] 초기 데이터 삽입
 -- ================================================================
 
@@ -459,26 +530,28 @@ ANALYZE report_tracking_logs;
 DO $$ 
 BEGIN 
     RAISE NOTICE '══════════════════════════════════════════════════════════';
-    RAISE NOTICE '✅ LinkPitch MVP v7.8 (Production Ready) 설치 완료!';
+    RAISE NOTICE '✅ LinkPitch MVP v8.0 (Integrated Schema) 설치 완료!';
     RAISE NOTICE '══════════════════════════════════════════════════════════';
     RAISE NOTICE '';
-    RAISE NOTICE '📊 generated_emails 테이블 구조:';
-    RAISE NOTICE '   • report_html         → 발송용 (디자인 적용)';
-    RAISE NOTICE '   • report_html_editable → 편집용 (순수 본문)';
-    RAISE NOTICE '   • store_name, category, tier → 메타 데이터';
+    RAISE NOTICE '📊 주요 기능:';
+    RAISE NOTICE '   • credits 컬럼: 사용자 무료 크레딧 시스템 (기본값 3)';
+    RAISE NOTICE '   • generated_emails: 리포트 뷰어 완벽 연동';
+    RAISE NOTICE '   • 캐시 정리 함수: cleanup_expired_cache()';
     RAISE NOTICE '';
     RAISE NOTICE '🔗 n8n 워크플로우 연동:';
     RAISE NOTICE '   • 워크플로우 1 (생성): DB 저장 노드 필드 매핑 필요';
     RAISE NOTICE '   • 워크플로우 2 (수정): 기존 정보 조회 → 디자인 재적용 → DB 업데이트';
     RAISE NOTICE '';
     RAISE NOTICE '⚡️ 최적화 완료:';
-    RAISE NOTICE '   • 제약조건: 15개 추가 (데이터 무결성 강화)';
-    RAISE NOTICE '   • 인덱스: 30개 (쿼리 성능 최적화)';
+    RAISE NOTICE '   • 제약조건: 16개 (데이터 무결성 강화)';
+    RAISE NOTICE '   • 인덱스: 31개 (쿼리 성능 최적화)';
     RAISE NOTICE '   • JSONB GIN 인덱스: 4개 (검색 성능 향상)';
     RAISE NOTICE '   • UNIQUE 제약조건: generated_emails (prospect_id, step_number)';
     RAISE NOTICE '   • 커버링 인덱스: idx_emails_prospect_step_meta';
     RAISE NOTICE '';
-    RAISE NOTICE '🔒 데이터 무결성:';
+    RAISE NOTICE '🔒 보안 설정:';
+    RAISE NOTICE '   • RLS: 개발 단계에서 비활성화';
+    RAISE NOTICE '   • 프로덕션 배포 전 RLS 활성화 필수';
     RAISE NOTICE '   • 모든 외래키 제약조건 완료';
     RAISE NOTICE '   • CHECK 제약조건으로 데이터 검증 강화';
     RAISE NOTICE '   • UNIQUE 제약조건으로 중복 방지';

@@ -38,7 +38,7 @@ export async function syncUserToSupabase(userId: string) {
   let error;
 
   if (existingByClerkId) {
-    // clerk_id가 일치하는 경우: 업데이트
+    // clerk_id가 일치하는 경우: 업데이트 (credits는 유지)
     const { data: updatedData, error: updateError } = await supabase
       .from("users")
       .update({
@@ -48,6 +48,7 @@ export async function syncUserToSupabase(userId: string) {
           clerkUser.username ||
           email ||
           "Unknown",
+        // credits는 기존 값 유지 (업데이트하지 않음)
       })
       .eq("clerk_id", clerkUser.id)
       .select()
@@ -57,6 +58,7 @@ export async function syncUserToSupabase(userId: string) {
     error = updateError;
   } else if (existingByEmail) {
     // email이 일치하지만 clerk_id가 다른 경우: clerk_id 업데이트
+    // credits는 기존 값 유지
     const { data: updatedData, error: updateError } = await supabase
       .from("users")
       .update({
@@ -66,6 +68,7 @@ export async function syncUserToSupabase(userId: string) {
           clerkUser.username ||
           email ||
           "Unknown",
+        // credits는 기존 값 유지
       })
       .eq("email", email)
       .select()
@@ -74,7 +77,7 @@ export async function syncUserToSupabase(userId: string) {
     data = updatedData;
     error = updateError;
   } else {
-    // 새 사용자 생성
+    // 새 사용자 생성 (credits 기본값 3 적용)
     const { data: insertedData, error: insertError } = await supabase
       .from("users")
       .insert({
@@ -85,6 +88,7 @@ export async function syncUserToSupabase(userId: string) {
           clerkUser.username ||
           email ||
           "Unknown",
+        credits: 3, // 새 사용자는 기본 크레딧 3개 제공
       })
       .select()
       .single();
@@ -94,6 +98,15 @@ export async function syncUserToSupabase(userId: string) {
   }
 
   if (error) {
+    console.error("Supabase sync error:", {
+      error,
+      errorCode: error.code,
+      errorMessage: error.message,
+      errorDetails: error.details,
+      errorHint: error.hint,
+      clerkUserId: clerkUser.id,
+      email,
+    });
     throw new Error(`Supabase sync error: ${error.message}`);
   }
 

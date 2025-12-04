@@ -8,7 +8,7 @@
 
 "use server";
 
-import { createClerkSupabaseClient } from "@/lib/supabase/server";
+import { getServiceRoleClient } from "@/lib/supabase/service-role";
 import { auth } from "@clerk/nextjs/server";
 import type {
   Prospect,
@@ -23,7 +23,8 @@ import type {
  * @returns Supabase users 테이블의 UUID
  */
 async function getSupabaseUserId(clerkId: string): Promise<string> {
-  const supabase = await createClerkSupabaseClient();
+  // Service Role 클라이언트 사용 (RLS 우회, 개발 단계에서 안정적)
+  const supabase = getServiceRoleClient();
 
   const { data: userData, error: userError } = await supabase
     .from("users")
@@ -32,9 +33,26 @@ async function getSupabaseUserId(clerkId: string): Promise<string> {
     .single();
 
   if (userError || !userData) {
-    console.error("User not found in Supabase:", userError);
+    // 상세한 에러 정보 로깅
+    console.error("User not found in Supabase:", {
+      clerkId,
+      error: userError,
+      errorCode: userError?.code,
+      errorMessage: userError?.message,
+      errorDetails: userError?.details,
+      errorHint: userError?.hint,
+      hasData: !!userData,
+    });
+
+    // 사용자가 존재하지 않는 경우 더 명확한 에러 메시지
+    if (userError?.code === "PGRST116") {
+      throw new Error(
+        "사용자 정보를 찾을 수 없습니다. 로그인을 다시 시도해주세요. (사용자가 Supabase에 동기화되지 않았을 수 있습니다.)",
+      );
+    }
+
     throw new Error(
-      "사용자 정보를 찾을 수 없습니다. 로그인을 다시 시도해주세요.",
+      `사용자 정보를 찾을 수 없습니다. 로그인을 다시 시도해주세요. (에러 코드: ${userError?.code || "UNKNOWN"})`,
     );
   }
 
@@ -54,7 +72,8 @@ export async function getProspects(): Promise<Prospect[]> {
   }
 
   const userUuid = await getSupabaseUserId(clerkId);
-  const supabase = await createClerkSupabaseClient();
+  // Service Role 클라이언트 사용 (RLS 우회)
+  const supabase = getServiceRoleClient();
 
   const { data, error } = await supabase
     .from("prospects")
@@ -63,7 +82,14 @@ export async function getProspects(): Promise<Prospect[]> {
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Prospect 조회 실패:", error);
+    console.error("Prospect 조회 실패:", {
+      error,
+      errorCode: error.code,
+      errorMessage: error.message,
+      errorDetails: error.details,
+      errorHint: error.hint,
+      userUuid,
+    });
     throw new Error(`Prospect 조회 실패: ${error.message}`);
   }
 
@@ -84,7 +110,8 @@ export async function getProspectById(id: string): Promise<Prospect | null> {
   }
 
   const userUuid = await getSupabaseUserId(clerkId);
-  const supabase = await createClerkSupabaseClient();
+  // Service Role 클라이언트 사용 (RLS 우회)
+  const supabase = getServiceRoleClient();
 
   const { data, error } = await supabase
     .from("prospects")
@@ -98,7 +125,15 @@ export async function getProspectById(id: string): Promise<Prospect | null> {
       // 레코드를 찾을 수 없음
       return null;
     }
-    console.error("Prospect 조회 실패:", error);
+    console.error("Prospect 조회 실패:", {
+      error,
+      errorCode: error.code,
+      errorMessage: error.message,
+      errorDetails: error.details,
+      errorHint: error.hint,
+      prospectId: id,
+      userUuid,
+    });
     throw new Error(`Prospect 조회 실패: ${error.message}`);
   }
 
@@ -121,7 +156,8 @@ export async function createProspect(
   }
 
   const userUuid = await getSupabaseUserId(clerkId);
-  const supabase = await createClerkSupabaseClient();
+  // Service Role 클라이언트 사용 (RLS 우회)
+  const supabase = getServiceRoleClient();
 
   const { data, error } = await supabase
     .from("prospects")
@@ -139,7 +175,15 @@ export async function createProspect(
     .single();
 
   if (error) {
-    console.error("Prospect 생성 실패:", error);
+    console.error("Prospect 생성 실패:", {
+      error,
+      errorCode: error.code,
+      errorMessage: error.message,
+      errorDetails: error.details,
+      errorHint: error.hint,
+      userUuid,
+      input,
+    });
     throw new Error(`Prospect 생성 실패: ${error.message}`);
   }
 
@@ -168,7 +212,8 @@ export async function updateProspect(
   }
 
   const userUuid = await getSupabaseUserId(clerkId);
-  const supabase = await createClerkSupabaseClient();
+  // Service Role 클라이언트 사용 (RLS 우회)
+  const supabase = getServiceRoleClient();
 
   // Prospect가 현재 사용자의 것인지 확인
   const { data: existing, error: checkError } = await supabase
@@ -179,6 +224,14 @@ export async function updateProspect(
     .single();
 
   if (checkError || !existing) {
+    console.error("Prospect 소유권 확인 실패:", {
+      error: checkError,
+      errorCode: checkError?.code,
+      errorMessage: checkError?.message,
+      prospectId: id,
+      userUuid,
+      hasExisting: !!existing,
+    });
     throw new Error(
       `Prospect 조회 실패: ${
         checkError?.message || "Prospect를 찾을 수 없습니다."
@@ -215,7 +268,16 @@ export async function updateProspect(
     .single();
 
   if (error) {
-    console.error("Prospect 업데이트 실패:", error);
+    console.error("Prospect 업데이트 실패:", {
+      error,
+      errorCode: error.code,
+      errorMessage: error.message,
+      errorDetails: error.details,
+      errorHint: error.hint,
+      prospectId: id,
+      userUuid,
+      updateData,
+    });
     throw new Error(`Prospect 업데이트 실패: ${error.message}`);
   }
 

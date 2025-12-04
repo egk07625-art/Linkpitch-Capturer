@@ -24,6 +24,9 @@ import { useEffect, useRef } from "react";
 export function useSyncUser() {
   const { isLoaded, userId } = useAuth();
   const syncedRef = useRef(false);
+  const retryCountRef = useRef(0);
+  const maxRetries = 3;
+  const retryDelay = 1000; // 1초
 
   useEffect(() => {
     // 이미 동기화했거나, 로딩 중이거나, 로그인하지 않은 경우 무시
@@ -31,21 +34,54 @@ export function useSyncUser() {
       return;
     }
 
-    // 동기화 실행
-    const syncUser = async () => {
+    // 동기화 실행 (재시도 로직 포함)
+    const syncUser = async (attempt: number = 1): Promise<void> => {
       try {
         const response = await fetch("/api/sync-user", {
           method: "POST",
         });
 
         if (!response.ok) {
-          console.error("Failed to sync user:", await response.text());
+          const errorText = await response.text();
+          console.error(`Failed to sync user (attempt ${attempt}/${maxRetries}):`, {
+            status: response.status,
+            statusText: response.statusText,
+            error: errorText,
+            userId,
+          });
+
+          // 재시도 가능한 경우 재시도
+          if (attempt < maxRetries && response.status >= 500) {
+            retryCountRef.current = attempt;
+            setTimeout(() => {
+              syncUser(attempt + 1);
+            }, retryDelay * attempt); // 지수 백오프
+            return;
+          }
+
           return;
         }
 
+        const result = await response.json();
+        console.log("User synced successfully:", {
+          userId,
+          supabaseUserId: result.user?.id,
+        });
         syncedRef.current = true;
+        retryCountRef.current = 0;
       } catch (error) {
-        console.error("Error syncing user:", error);
+        console.error(`Error syncing user (attempt ${attempt}/${maxRetries}):`, {
+          error,
+          userId,
+        });
+
+        // 네트워크 에러 등 재시도 가능한 경우 재시도
+        if (attempt < maxRetries) {
+          retryCountRef.current = attempt;
+          setTimeout(() => {
+            syncUser(attempt + 1);
+          }, retryDelay * attempt);
+        }
       }
     };
 
