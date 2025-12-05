@@ -203,3 +203,4 @@ CREATE INDEX idx_users_credits ON users(credits);
 
 **다음 단계**: 프로덕션 배포 전에 `20251123012300_enable_rls_policies.sql.disabled` 파일을 활성화하여 RLS를 다시 적용해야 합니다.
 
+

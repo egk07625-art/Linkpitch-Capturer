@@ -454,7 +454,7 @@ export default function ClientsUnifiedView({
                   key={prospect.id}
                   className="grid grid-cols-12 gap-6 px-10 py-7 items-center hover:bg-[#1F1F22] transition-all group cursor-pointer"
                   onClick={() => {
-                    router.push(`/prospects?id=${prospect.id}`);
+                    router.push(`/prospects/${prospect.id}/mix`);
                   }}
                 >
                   {/* 1. 회사 정보 (3칸) - 가장 중요 -> 가장 크게 */}

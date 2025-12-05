@@ -380,7 +380,7 @@ export function ProspectsTable({
               key={prospect.id}
               className="grid grid-cols-12 gap-6 px-6 py-6 items-center border-b border-white/10 hover:bg-white/5 transition-all group cursor-pointer"
               onClick={() => {
-                router.push(`/prospects?id=${prospect.id}`);
+                router.push(`/prospects/${prospect.id}/mix`);
               }}
             >
               {/* 1. 회사 정보 (3칸) */}
@@ -421,7 +421,10 @@ export function ProspectsTable({
               </div>
 
               {/* 3. 연락처 (2칸) - 로고 삭제 & 폰트 정리 */}
-              <div className="col-span-2 flex flex-col justify-center overflow-hidden">
+              <div 
+                className="col-span-2 flex flex-col justify-center overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+              >
                 {prospect.contact_email ? (
                   <span
                     className="text-base text-gray-400 font-mono tracking-tight truncate hover:text-white transition-colors cursor-pointer"
@@ -504,7 +507,11 @@ export function ProspectsTable({
                       <MoreHorizontal size={20} />
                     </button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-800">
+                  <DropdownMenuContent 
+                    align="end" 
+                    className="bg-zinc-900 border-zinc-800"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <DropdownMenuItem
                       onClick={(e) => {
                         e.stopPropagation();
