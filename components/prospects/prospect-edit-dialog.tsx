@@ -21,6 +21,7 @@ export function ProspectEditDialog({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: prospect.name,
+    category: prospect.category || "",
     contact_name: prospect.contact_name || "",
     contact_email: prospect.contact_email || "",
     contact_phone: prospect.contact_phone || "",
@@ -28,15 +29,36 @@ export function ProspectEditDialog({
     memo: prospect.memo || "",
   });
 
+  // 메모를 JSON에서 텍스트로 변환하는 헬퍼 함수
+  const parseMemoToText = (memo: string | undefined | null): string => {
+    if (!memo) return "";
+    
+    try {
+      const parsed = JSON.parse(memo);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        // 배열의 경우 첫 번째 항목의 content만 표시 (또는 모든 content를 합침)
+        return parsed.map((item: any) => item.content || "").filter(Boolean).join("\n\n");
+      } else if (typeof parsed === 'object' && parsed !== null) {
+        return parsed.content || String(parsed);
+      } else {
+        return String(parsed);
+      }
+    } catch {
+      // JSON이 아닌 경우 그대로 반환
+      return memo;
+    }
+  };
+
   useEffect(() => {
     if (open) {
       setFormData({
         name: prospect.name,
+        category: prospect.category || "",
         contact_name: prospect.contact_name || "",
         contact_email: prospect.contact_email || "",
         contact_phone: prospect.contact_phone || "",
         url: prospect.url || "",
-        memo: prospect.memo || "",
+        memo: parseMemoToText(prospect.memo), // JSON 파싱하여 텍스트만 표시
       });
     }
   }, [open, prospect]);
@@ -48,11 +70,13 @@ export function ProspectEditDialog({
     try {
       const updateData: UpdateProspectInput = {
         name: formData.name,
+        category: formData.category || undefined,
         contact_name: formData.contact_name || undefined,
         contact_email: formData.contact_email || undefined,
         contact_phone: formData.contact_phone || undefined,
         url: formData.url || undefined,
-        memo: formData.memo || undefined,
+        // memo는 정보 수정 다이얼로그에서 수정하지 않음 (별도 메뉴에서 관리)
+        // memo: formData.memo || undefined,
       };
 
       await updateProspect(prospect.id, updateData);
@@ -96,13 +120,30 @@ export function ProspectEditDialog({
             </label>
             <input
               id="edit-name"
-              value={formData.name}
+              value={formData.name || ""}
               onChange={(e) =>
                 setFormData({ ...formData, name: e.target.value })
               }
               placeholder="예: 올리브영"
               className="w-full h-12 bg-[#1C1C1E] border border-[#333] rounded-lg px-3 text-white text-[15px] focus:border-white/50 focus:outline-none transition-colors placeholder:text-zinc-600"
               required
+              disabled={isSubmitting}
+            />
+          </div>
+
+          {/* 카테고리 */}
+          <div>
+            <label htmlFor="edit-category" className="block text-sm font-semibold text-gray-400 mb-1">
+              카테고리
+            </label>
+            <input
+              id="edit-category"
+              value={formData.category || ""}
+              onChange={(e) =>
+                setFormData({ ...formData, category: e.target.value })
+              }
+              placeholder="예: 농산물, 식품, 패션 등"
+              className="w-full h-12 bg-[#1C1C1E] border border-[#333] rounded-lg px-3 text-white text-[15px] focus:border-white/50 focus:outline-none transition-colors placeholder:text-zinc-600"
               disabled={isSubmitting}
             />
           </div>
@@ -114,7 +155,7 @@ export function ProspectEditDialog({
             </label>
             <input
               id="edit-contact-name"
-              value={formData.contact_name}
+              value={formData.contact_name || ""}
               onChange={(e) =>
                 setFormData({ ...formData, contact_name: e.target.value })
               }
@@ -132,7 +173,7 @@ export function ProspectEditDialog({
             <input
               id="edit-contact-email"
               type="email"
-              value={formData.contact_email}
+              value={formData.contact_email || ""}
               onChange={(e) =>
                 setFormData({ ...formData, contact_email: e.target.value })
               }
@@ -150,7 +191,7 @@ export function ProspectEditDialog({
             <input
               id="edit-contact-phone"
               type="tel"
-              value={formData.contact_phone}
+              value={formData.contact_phone || ""}
               onChange={(e) =>
                 setFormData({ ...formData, contact_phone: e.target.value })
               }
@@ -168,7 +209,7 @@ export function ProspectEditDialog({
             <input
               id="edit-url"
               type="url"
-              value={formData.url}
+              value={formData.url || ""}
               onChange={(e) =>
                 setFormData({ ...formData, url: e.target.value })
               }
@@ -178,23 +219,8 @@ export function ProspectEditDialog({
             />
           </div>
 
-          {/* 메모 */}
-          <div>
-            <label htmlFor="edit-memo" className="block text-sm font-semibold text-gray-400 mb-1">
-              메모
-            </label>
-            <textarea
-              id="edit-memo"
-              value={formData.memo}
-              onChange={(e) =>
-                setFormData({ ...formData, memo: e.target.value })
-              }
-              placeholder="추가 정보를 입력하세요"
-              rows={4}
-              className="w-full h-auto min-h-[96px] bg-[#1C1C1E] border border-[#333] rounded-lg px-3 py-3 text-white text-[15px] focus:border-white/50 focus:outline-none transition-colors placeholder:text-zinc-600 resize-none"
-              disabled={isSubmitting}
-            />
-          </div>
+          {/* 메모 - 정보 수정 다이얼로그에서는 메모 필드 제거 (별도 메뉴에서 관리) */}
+          {/* 메모는 "메모 보기" 메뉴에서만 관리하도록 함 */}
 
           {/* Buttons */}
           <div className="flex justify-end gap-3 mt-8">
