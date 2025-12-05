@@ -63,6 +63,7 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider
+      publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
       localization={customKoKR}
       appearance={{
         variables: {
