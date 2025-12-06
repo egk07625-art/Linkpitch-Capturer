@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/utils/supabase/client';
 import type { GeneratedEmail } from '@/types/generated-email';
@@ -41,12 +41,49 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
   const [selectedSubjectText, setSelectedSubjectText] = useState<string>(''); // 사용자가 최종 선택한 제목
 
   // --------------------------------------------------------
+  // [핵심 로직] 초기 제목 설정 (Step 또는 카테고리 변경 시)
+  // --------------------------------------------------------
+  useEffect(() => {
+    // 현재 Step의 데이터 찾기
+    const currentStepData = allStepsData.find(item => item.step_number === activeStep);
+
+    // 제목 옵션 파싱
+    let subjectOptions: Record<string, string[]> = {};
+    try {
+      const rawSubjects = currentStepData?.email_subjects;
+      if (typeof rawSubjects === 'string') {
+        subjectOptions = JSON.parse(rawSubjects);
+      } else if (typeof rawSubjects === 'object' && rawSubjects !== null) {
+        Object.entries(rawSubjects).forEach(([key, value]) => {
+          if (Array.isArray(value)) {
+            subjectOptions[key] = value;
+          } else if (typeof value === 'string') {
+            subjectOptions[key] = [value];
+          }
+        });
+      }
+    } catch (e) {
+      console.error('[InsightMixer] email_subjects 파싱 실패:', e);
+    }
+
+    const categorySubjects = subjectOptions?.[activeSubjectCategory] || [];
+    if (categorySubjects.length > 0) {
+      // 현재 선택된 제목이 새로운 카테고리에 없으면 첫 번째 제목으로 설정
+      if (!categorySubjects.includes(selectedSubjectText)) {
+        setSelectedSubjectText(categorySubjects[0]);
+      }
+    } else {
+      setSelectedSubjectText('');
+    }
+  }, [activeStep, activeSubjectCategory, allStepsData, selectedSubjectText]);
+
+  // --------------------------------------------------------
   // [핵심 로직] DB에서 진짜 데이터 가져오기 (useEffect)
   // --------------------------------------------------------
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      
+
       // (1) 고객 정보 가져오기 (이름, 카테고리 등)
       const { data: prospectData, error: prospectError } = await supabase
         .from('prospects')
@@ -84,57 +121,6 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
     fetchData();
   }, [prospectId]);
 
-  // 현재 활성화된 Step 번호와 일치하는 데이터 찾기 (useMemo로 최적화)
-  const currentStepData = useMemo(() => {
-    return allStepsData.find(item => item.step_number === activeStep);
-  }, [allStepsData, activeStep]);
-
-  // 1. 제목 데이터 파싱 (JSON 객체 처리) - useMemo로 최적화
-  const subjectOptions = useMemo(() => {
-    let parsed: Record<string, string[]> = {};
-    try {
-      const rawSubjects = currentStepData?.email_subjects;
-      if (typeof rawSubjects === 'string') {
-        parsed = JSON.parse(rawSubjects);
-      } else if (typeof rawSubjects === 'object' && rawSubjects !== null) {
-        // 객체인 경우, 값이 배열인지 확인하고 변환
-        Object.entries(rawSubjects).forEach(([key, value]) => {
-          if (Array.isArray(value)) {
-            parsed[key] = value;
-          } else if (typeof value === 'string') {
-            // 문자열인 경우 배열로 변환
-            parsed[key] = [value];
-          }
-        });
-      }
-    } catch (e) {
-      console.error('[InsightMixer] email_subjects 파싱 실패:', e);
-      parsed = { metric_direct: ["아직 생성된 제목이 없습니다."] };
-    }
-    return parsed;
-  }, [currentStepData]);
-
-  // 현재 선택된 카테고리의 제목 리스트
-  const currentCategorySubjects = useMemo(() => {
-    return subjectOptions?.[activeSubjectCategory] || [];
-  }, [subjectOptions, activeSubjectCategory]);
-
-  // 초기 제목 설정 (Step 또는 카테고리 변경 시) - early return 이전으로 이동!
-  useEffect(() => {
-    if (currentCategorySubjects.length > 0) {
-      // 현재 선택된 제목이 새로운 카테고리에 없으면 첫 번째 제목으로 설정
-      setSelectedSubjectText((prev) => {
-        if (!currentCategorySubjects.includes(prev)) {
-          return currentCategorySubjects[0];
-        }
-        return prev;
-      });
-    } else {
-      setSelectedSubjectText('');
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeStep, activeSubjectCategory, currentCategorySubjects]);
-
   // --------------------------------------------------------
   // [예외 처리] 로딩 중이거나 데이터가 없을 때
   // --------------------------------------------------------
@@ -154,8 +140,33 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
   }
 
   // --------------------------------------------------------
-  // [데이터 매핑] 렌더링에 필요한 데이터 계산
+  // [데이터 매핑] 현재 활성화된 Step에 맞는 데이터 찾기
   // --------------------------------------------------------
+
+  // 현재 활성화된 Step 번호와 일치하는 데이터 찾기
+  const currentStepData = allStepsData.find(item => item.step_number === activeStep);
+
+  // 1. 제목 데이터 파싱 (JSON 객체 처리)
+  let subjectOptions: Record<string, string[]> = {};
+  try {
+    const rawSubjects = currentStepData?.email_subjects;
+    if (typeof rawSubjects === 'string') {
+      subjectOptions = JSON.parse(rawSubjects);
+    } else if (typeof rawSubjects === 'object' && rawSubjects !== null) {
+      // 객체인 경우, 값이 배열인지 확인하고 변환
+      Object.entries(rawSubjects).forEach(([key, value]) => {
+        if (Array.isArray(value)) {
+          subjectOptions[key] = value;
+        } else if (typeof value === 'string') {
+          // 문자열인 경우 배열로 변환
+          subjectOptions[key] = [value];
+        }
+      });
+    }
+  } catch (e) {
+    console.error('[InsightMixer] email_subjects 파싱 실패:', e);
+    subjectOptions = { metric_direct: ["아직 생성된 제목이 없습니다."] };
+  }
 
   // 2. 본문 데이터 처리 (줄바꿈 이슈 해결)
   // [핵심] n8n의 <br> 태그를 살리면서, 불필요한 줄바꿈(\n)은 제거
@@ -163,11 +174,14 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
     const rawBody = currentStepData?.[`email_body_${type}`];
     if (!rawBody) return "데이터 로딩 중...";
     // \n(엔터)를 제거하고 <br>만 남깁니다.
-    return rawBody.replace(/\n/g, ''); 
+    return rawBody.replace(/\n/g, '');
   };
 
   const currentBodyHtml = getCleanBody(selectedBodyType as 'solopreneur' | 'corporate');
-  const reportHtml = currentStepData?.report_html_editable || "<p>리포트가 없습니다.</p>"; 
+  const reportHtml = currentStepData?.report_html_editable || "<p>리포트가 없습니다.</p>";
+
+  // 현재 선택된 카테고리의 제목 리스트 (2개)
+  const currentCategorySubjects = subjectOptions?.[activeSubjectCategory] || []; 
 
   return (
     <div className="h-screen w-full bg-[#050505] text-zinc-100 font-sans flex flex-col overflow-hidden">
