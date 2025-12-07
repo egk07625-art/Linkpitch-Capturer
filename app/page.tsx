@@ -1,4 +1,7 @@
+'use client';
+
 import Link from 'next/link';
+import { SignedOut, SignedIn, UserButton } from '@clerk/nextjs';
 import { ArrowRight, Zap, MousePointerClick, TrendingUp, Check, LayoutTemplate, Type, FileText, Image as ImageIcon, Sparkles } from 'lucide-react';
 
 export default function LandingPage() {
@@ -12,12 +15,39 @@ export default function LandingPage() {
         <div className="max-w-[1400px] mx-auto px-6 h-14 flex items-center justify-between">
           <span className="text-lg font-bold tracking-tighter cursor-pointer text-white">LinkPitch</span>
           <div className="flex items-center gap-6">
-            <Link href="/login" className="text-xs font-medium text-zinc-400 hover:text-white transition-colors">
-              로그인
-            </Link>
-            <Link href="/dashboard" className="h-8 px-4 rounded-full bg-white text-black text-xs font-bold flex items-center hover:bg-zinc-200 transition-colors">
-              무료로 시작하기
-            </Link>
+            <SignedOut>
+              <Link 
+                href="/sign-in" 
+                className="text-xs font-medium text-zinc-400 hover:text-white transition-colors relative z-10 cursor-pointer"
+              >
+                로그인
+              </Link>
+            </SignedOut>
+            <SignedIn>
+              <UserButton 
+                appearance={{
+                  elements: {
+                    avatarBox: "size-8",
+                  },
+                }}
+              />
+            </SignedIn>
+            <SignedOut>
+              <Link 
+                href="/sign-up" 
+                className="h-8 px-4 rounded-full bg-white text-black text-xs font-bold flex items-center hover:bg-zinc-200 transition-colors relative z-10 cursor-pointer"
+              >
+                무료로 시작하기
+              </Link>
+            </SignedOut>
+            <SignedIn>
+              <Link 
+                href="/app" 
+                className="h-8 px-4 rounded-full bg-white text-black text-xs font-bold flex items-center hover:bg-zinc-200 transition-colors relative z-10 cursor-pointer"
+              >
+                대시보드
+              </Link>
+            </SignedIn>
           </div>
         </div>
       </nav>

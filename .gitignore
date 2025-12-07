@@ -66,3 +66,8 @@ repomix-output.xml
 
 # clerk configuration (can include secrets)
 /.clerk/
+
+# clerk backup files (temporary backups, should not be committed)
+.clerk_backup/
+*.clerk_backup
+*.clerk_backup_*

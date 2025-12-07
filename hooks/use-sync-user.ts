@@ -43,12 +43,15 @@ export function useSyncUser() {
 
         if (!response.ok) {
           const errorText = await response.text();
-          console.error(`Failed to sync user (attempt ${attempt}/${maxRetries}):`, {
-            status: response.status,
-            statusText: response.statusText,
-            error: errorText,
-            userId,
-          });
+          console.error(
+            `Failed to sync user (attempt ${attempt}/${maxRetries}):`,
+            {
+              status: response.status,
+              statusText: response.statusText,
+              error: errorText,
+              userId,
+            },
+          );
 
           // 재시도 가능한 경우 재시도
           if (attempt < maxRetries && response.status >= 500) {
@@ -70,10 +73,13 @@ export function useSyncUser() {
         syncedRef.current = true;
         retryCountRef.current = 0;
       } catch (error) {
-        console.error(`Error syncing user (attempt ${attempt}/${maxRetries}):`, {
-          error,
-          userId,
-        });
+        console.error(
+          `Error syncing user (attempt ${attempt}/${maxRetries}):`,
+          {
+            error,
+            userId,
+          },
+        );
 
         // 네트워크 에러 등 재시도 가능한 경우 재시도
         if (attempt < maxRetries) {
@@ -88,4 +94,3 @@ export function useSyncUser() {
     syncUser();
   }, [isLoaded, userId]);
 }
-

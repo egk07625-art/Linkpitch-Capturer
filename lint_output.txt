@@ -1,0 +1,6 @@
+
+> saas-mini-course@0.1.0 lint /home/bc009/projects/LinkPitch-MVP-project/LinkPitch-MVP-project-main
+> next lint
+
+Invalid project directory provided, no such directory: /home/bc009/projects/LinkPitch-MVP-project/LinkPitch-MVP-project-main/lint
+ ELIFECYCLE  Command failed with exit code 1.
