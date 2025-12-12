@@ -6,9 +6,9 @@ Your goal is to build a high-density, professional SaaS using the specific stack
 ## 🚨 CORE WORKFLOW (Must Read)
 
 Before implementing any feature or UI, **YOU MUST READ** the corresponding documentation in the `docs/` folder:
-- **Business Logic**: Read `docs/1_PRD.md`
-- **Implementation details**: Read `docs/2_DEV_GUIDE.md`
-- **UI/Design Specs**: Read `docs/3_DESIGN_GUIDE.md`
+- **Business Logic**: Read `docs/PRD.md`
+- **Implementation details**: Read `docs/DEV_GUIDE.md`
+- **UI/Design Specs**: Read `docs/DESIGN_PLAN.md`
 
 # LANGUAGE PROTOCOL (MUST FOLLOW)
 1. **Output Language:** You must ALWAYS answer in **Korean (한국어)**.
@@ -65,7 +65,7 @@ Before implementing any feature or UI, **YOU MUST READ** the corresponding docum
 ### 4. Design System (Silent Luxury)
 - **Theme**: Linear-style Dark Mode (`zinc-950` background, `indigo-500` primary).
 - **Layout**: High density, subtle borders (`white/5`), no heavy shadows.
-- **Ref**: Check `docs/3_DESIGN_GUIDE.md` for specific color tokens.
+- **Ref**: Check `docs/DESIGN_PLAN.md` for specific color tokens.
 
 ## Coding Principles
 1. **Type Safety**: No `any`. Define exact types in `types/`.
@@ -73,6 +73,6 @@ Before implementing any feature or UI, **YOU MUST READ** the corresponding docum
 3. **Language**: Respond to the user in **Korean** (한국어).
 
 ## Reference Files
-- `docs/1_PRD.md`: Product Requirements
-- `docs/2_DEV_GUIDE.md`: Development Guide
-- `docs/3_DESIGN_GUIDE.md`: Design System
+- `docs/PRD.md`: Product Requirements
+- `docs/DEV_GUIDE.md`: Development Guide
+- `docs/DESIGN_PLAN.md`: Design System

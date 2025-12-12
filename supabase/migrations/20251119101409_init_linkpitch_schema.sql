@@ -1,11 +1,9 @@
 -- ================================================================
--- LinkPitch MVP v8.1 (Integrated Schema)
+-- LinkPitch MVP v8.2 (Upsert Patch Version)
 -- 변경사항: 
---   - contact_phone 컬럼 추가 (prospects 테이블) - [수정됨]
---   - credits 컬럼 추가 (users 테이블)
---   - RLS 비활성화 (개발 단계)
---   - 캐시 정리 함수 추가
---   - 모든 마이그레이션 통합
+--   - [핵심] generated_emails 테이블에 UNIQUE 제약조건 추가 (Upsert용)
+--   - contact_phone 컬럼 (prospects)
+--   - credits 컬럼 (users)
 -- ================================================================
 
 -- [1] 초기화 (순서대로 삭제)
@@ -105,8 +103,6 @@ CREATE TABLE prospects (
     name VARCHAR(255) NOT NULL,
     contact_name VARCHAR(255),
     contact_email VARCHAR(255), 
-    
-    -- [수정됨] 연락처 컬럼 추가
     contact_phone VARCHAR(50), 
 
     url VARCHAR(500),
@@ -195,7 +191,7 @@ ALTER TABLE step ADD CONSTRAINT fk_step_selected_generation
 FOREIGN KEY (selected_generation_id) REFERENCES step_generations(id) ON DELETE SET NULL;
 
 -- ================================================================
--- [5] generated_emails 테이블 (n8n 워크플로우 완벽 연동)
+-- [5] generated_emails 테이블 (n8n Upsert 완벽 지원)
 -- ================================================================
 CREATE TABLE generated_emails (
     id UUID DEFAULT gen_random_uuid() NOT NULL,
@@ -205,30 +201,23 @@ CREATE TABLE generated_emails (
     theme VARCHAR(100) NOT NULL,
     target_type VARCHAR(50) NOT NULL,
     
-    -- ============================================================
-    -- [핵심] 2-Track HTML 저장 전략
-    -- ============================================================
-    -- 발송용: 디자인(CSS, 헤더, 푸터)이 모두 적용된 완성 HTML
+    -- HTML 저장 전략
     report_html TEXT NOT NULL DEFAULT '',
-    
-    -- 편집용: AI가 생성한 순수 본문만 (에디터에서 수정할 때 사용)
     report_html_editable TEXT NOT NULL DEFAULT '',
     
-    -- ============================================================
-    -- [메타 데이터] 수정 워크플로우 효율화
-    -- ============================================================
+    -- 메타 데이터
     store_name VARCHAR(255) NOT NULL DEFAULT '',
     category VARCHAR(100) NOT NULL DEFAULT '',
     tier VARCHAR(20) DEFAULT 'Middle',
     
-    -- 이메일 본문 (대상별)
+    -- 이메일 본문
     email_body_solopreneur TEXT,
     email_body_corporate TEXT,
     
-    -- 이메일 제목 (5가지 유형 x 2개씩 = 10개)
+    -- 이메일 제목
     email_subjects JSONB NOT NULL DEFAULT '{}'::jsonb,
     
-    -- 상태 관리
+    -- 상태
     status VARCHAR(20) DEFAULT 'pending',
     sent_at TIMESTAMPTZ,
     opened_at TIMESTAMPTZ,
@@ -242,15 +231,14 @@ CREATE TABLE generated_emails (
     CONSTRAINT pk_generated_emails PRIMARY KEY (id),
     CONSTRAINT fk_generated_emails_prospect FOREIGN KEY (prospect_id) REFERENCES prospects(id) ON DELETE CASCADE,
     CONSTRAINT fk_generated_emails_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    
+    -- [핵심 수정] Upsert를 위한 유니크 제약조건 (이게 있어야 덮어쓰기가 가능합니다)
+    CONSTRAINT uq_generated_emails_prospect_step UNIQUE (prospect_id, step_number),
+    
     CONSTRAINT chk_generated_emails_status CHECK (status IN ('pending', 'sent', 'opened', 'clicked', 'failed')),
     CONSTRAINT chk_generated_emails_step_number CHECK (step_number > 0 AND step_number <= 10),
     CONSTRAINT chk_generated_emails_tier CHECK (tier IS NULL OR tier IN ('High', 'Middle', 'Low'))
 );
-
--- UNIQUE 제약조건: (prospect_id, step_number) 조합이 유일해야 함
-CREATE UNIQUE INDEX uq_generated_emails_prospect_step 
-ON generated_emails(prospect_id, step_number) 
-WHERE prospect_id IS NOT NULL;
 
 -- [6] 템플릿 & 로그
 CREATE TABLE step_templates (
@@ -283,7 +271,7 @@ CREATE TABLE report_tracking_logs (
 -- [7] 인덱스 최적화
 -- ================================================================
 
--- JSONB GIN 인덱스 (검색 성능)
+-- JSONB GIN 인덱스
 CREATE INDEX idx_cache_vision_data_gin ON site_analysis_cache USING GIN (vision_data);
 CREATE INDEX idx_generations_report_data_gin ON step_generations USING GIN (report_data);
 CREATE INDEX idx_generations_report_materials_gin ON step_generations USING GIN (report_materials);
@@ -318,8 +306,6 @@ CREATE INDEX idx_prospects_crm_status ON prospects(user_id, crm_status);
 CREATE INDEX idx_prospects_crm_dashboard ON prospects(user_id, crm_status, last_activity_at DESC NULLS LAST);
 CREATE INDEX idx_prospects_store_name ON prospects(store_name) WHERE store_name IS NOT NULL;
 CREATE INDEX idx_prospects_email ON prospects(contact_email) WHERE contact_email IS NOT NULL;
-
--- [수정됨] 전화번호 검색을 위한 인덱스 추가
 CREATE INDEX idx_prospects_phone ON prospects(contact_phone) WHERE contact_phone IS NOT NULL;
 
 CREATE INDEX idx_prospects_tier ON prospects(tier) WHERE tier IS NOT NULL;
@@ -341,17 +327,11 @@ CREATE INDEX idx_generations_user_created ON step_generations(user_id, created_a
 CREATE INDEX idx_generations_step_status ON step_generations(step_id, status);
 CREATE INDEX idx_generations_cost ON step_generations(user_id, cost_krw) WHERE cost_krw > 0;
 
--- Generated Emails (워크플로우 최적화)
+-- Generated Emails
 CREATE INDEX idx_emails_prospect ON generated_emails(prospect_id);
 CREATE INDEX idx_emails_user_created ON generated_emails(user_id, created_at DESC);
 CREATE INDEX idx_emails_user_status ON generated_emails(user_id, status);
 CREATE INDEX idx_emails_type ON generated_emails(target_type);
-
--- [핵심] 수정 워크플로우 최적화 인덱스 (커버링 인덱스로 쿼리 성능 향상)
--- id는 PRIMARY KEY이므로 별도 인덱스 불필요, 대신 prospect_id + step_number 조합으로 커버링 인덱스 생성
-CREATE INDEX idx_emails_prospect_step_meta ON generated_emails(prospect_id, step_number) 
-INCLUDE (store_name, category, tier, theme) 
-WHERE prospect_id IS NOT NULL;
 
 -- Report Tracking Logs
 CREATE INDEX idx_tracking_prospect ON report_tracking_logs(prospect_id, created_at DESC);
@@ -455,16 +435,8 @@ $$ LANGUAGE plpgsql;
 COMMENT ON FUNCTION cleanup_expired_cache IS '30일 이상 미사용 캐시 삭제 (크론잡으로 실행)';
 
 -- ================================================================
--- [12] 개발 단계 RLS 비활성화
+-- [12] 개발 단계 RLS 비활성화 (프로덕션 배포 전 활성화 필수)
 -- ================================================================
---
--- 개발 단계에서는 RLS를 비활성화하여
--- 권한 관련 에러 없이 개발을 진행합니다.
---
--- ⚠️ 중요: 프로덕션 배포 전에 반드시 RLS 활성화 필요
--- ================================================================
-
--- 모든 테이블의 RLS 비활성화
 ALTER TABLE users DISABLE ROW LEVEL SECURITY;
 ALTER TABLE user_plans DISABLE ROW LEVEL SECURITY;
 ALTER TABLE prospects DISABLE ROW LEVEL SECURITY;
@@ -515,6 +487,7 @@ INSERT INTO plans (code, name, monthly_quota, price_krw) VALUES
 ('starter', 'Starter', 30, 49000), 
 ('pro', 'Pro', 100, 149000);
 
+-- 마스터 관리자 생성
 INSERT INTO public.users (id, email, clerk_id, name)
 VALUES (
   '17303ec6-7da7-4268-a3ed-da2826f9d589', 
@@ -524,31 +497,13 @@ VALUES (
 )
 ON CONFLICT (id) DO NOTHING;
 
--- ================================================================
 -- [10] 통계 수집 및 완료
--- ================================================================
 ANALYZE users;
-ANALYZE plans;
 ANALYZE prospects;
-ANALYZE sequences;
-ANALYZE step;
-ANALYZE step_generations;
 ANALYZE generated_emails;
-ANALYZE report_tracking_logs;
 
 DO $$ 
 BEGIN 
-    RAISE NOTICE '══════════════════════════════════════════════════════════';
-    RAISE NOTICE '✅ LinkPitch MVP v8.1 (Integrated Schema) 설치 완료!';
-    RAISE NOTICE '══════════════════════════════════════════════════════════';
-    RAISE NOTICE '';
-    RAISE NOTICE '📊 주요 기능:';
-    RAISE NOTICE '   • contact_phone 컬럼 추가: prospects 테이블';
-    RAISE NOTICE '   • credits 컬럼: 사용자 무료 크레딧 시스템 (기본값 3)';
-    RAISE NOTICE '   • generated_emails: 리포트 뷰어 완벽 연동';
-    RAISE NOTICE '   • 캐시 정리 함수: cleanup_expired_cache()';
-    RAISE NOTICE '';
-    RAISE NOTICE '⚡️ 최적화 완료:';
-    RAISE NOTICE '   • 인덱스: idx_prospects_phone 추가됨';
-    RAISE NOTICE '══════════════════════════════════════════════════════════';
+    RAISE NOTICE '✅ LinkPitch MVP v8.2 (Upsert Patch) 설치 완료!';
+    RAISE NOTICE '📊 핵심 변경: generated_emails 테이블에 CONSTRAINT uq_generated_emails_prospect_step 추가됨.';
 END $$;

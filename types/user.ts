@@ -19,6 +19,8 @@ export interface User {
   email: string;
   /** 이름 */
   name?: string;
+  /** 크레딧 (기본값: 3) */
+  credits: number;
   /** 생성 일시 */
   created_at: string;
   /** 수정 일시 */
@@ -32,6 +34,7 @@ export interface CreateUserInput {
   clerk_id: string;
   email: string;
   name?: string;
+  credits?: number; // 선택적 (기본값 3은 DB에서 처리)
 }
 
 /**
@@ -40,5 +43,6 @@ export interface CreateUserInput {
 export interface UpdateUserInput {
   email?: string;
   name?: string;
+  credits?: number; // 크레딧 업데이트 가능
 }
 
