@@ -73,11 +73,11 @@ export function SolutionBento() {
 
             {/* Content */}
             <h3 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-white mb-4 md:mb-5 leading-snug break-keep">
-              대표님도 몰랐던<br />
+              담당자도 몰랐던<br />
               <span className="text-cyan-400">'숨은 소구점'</span>을 찾아냅니다
             </h3>
             <p className="text-sm sm:text-base md:text-lg lg:text-xl text-gray-400 leading-relaxed mb-6 md:mb-8 break-keep">
-              단순 요약이 아닙니다. 상세페이지 디자인과 배치 속에 숨겨진 <span className="text-white font-semibold">'설득의 의도'</span>를 역설계하여 제안서의 핵심 무기로 만듭니다.
+              단순 요약이 아닙니다. <span className="text-white font-bold">네이버 스마트스토어</span>의 상세페이지 구조와 리뷰를 딥다이브하여 <span className="text-white font-semibold">'설득의 논리'</span>를 역설계합니다.
             </p>
 
             {/* Visual: Scanning Beam */}
@@ -87,7 +87,7 @@ export function SolutionBento() {
                 <div className="h-2 w-1/3 bg-gray-500 rounded"></div>
                 <div className="h-8 w-full bg-gray-600 rounded"></div>
                 <div className="h-2 w-1/2 bg-gray-500 rounded"></div>
-              </div>
+                </div>
               {/* The Laser */}
               <div className="absolute top-0 left-0 w-full h-[2px] bg-cyan-400 shadow-[0_0_20px_cyan] animate-scan-down" />
             </div>
@@ -113,8 +113,8 @@ export function SolutionBento() {
               고민 없는 <span className="text-blue-400">'초안'</span>, 10분 안에 뽑기
             </h3>
             <p className="text-sm sm:text-base md:text-lg lg:text-xl text-gray-400 leading-relaxed mb-6 md:mb-8 break-keep">
-              상세페이지의 <span className="text-white font-semibold">강점·약점·소구점</span>까지 AI가 찾아냅니다.{' '}
-              <span className="text-white font-semibold">90% 완성된 리포트</span>, 당신은 '검토'만 하세요.
+              복잡한 스토어 분석은 AI에게 맡기세요. <span className="text-white font-bold">단 10분이면 충분합니다.</span><br className="hidden md:block" />
+              설득의 논리가 완벽하게 갖춰진 <span className="text-blue-400 font-bold">'90% 완성 초안'</span>을 즉시 대령합니다.
             </p>
 
             {/* Visual: Auto-Typing Document */}

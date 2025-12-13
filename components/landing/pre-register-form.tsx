@@ -134,19 +134,22 @@ export function PreRegisterForm() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6, ease: 'easeOut' }}
-            className="text-3xl sm:text-4xl md:text-5xl font-bold text-white leading-tight mb-4 break-keep"
+            className="text-3xl sm:text-4xl md:text-5xl font-bold text-white leading-tight mb-6 break-keep"
           >
-            월 <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FFEBB2] via-[#FFC107] to-[#B45309] font-bold">49,000원</span>의 혜택,<br className="md:hidden" />
-            <span className="md:inline">지금 <span className="text-blue-500">0원</span>에 만나보세요</span>
+            정식 런칭 전, 유일한<br className="md:hidden" />
+            <span className="relative inline-block ml-2 text-transparent bg-clip-text bg-gradient-to-r from-[#FFEBB2] via-[#FFC107] to-[#B45309] drop-shadow-[0_0_15px_rgba(245,158,11,0.4)] font-bold">
+              '무제한'
+            </span>
+            기회입니다.
           </motion.h2>
         <motion.p
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6, delay: 0.1, ease: 'easeOut' }}
-          className="text-sm md:text-lg text-white/90 drop-shadow-[0_0_15px_rgba(34,211,238,0.4)] leading-relaxed break-keep"
+          className="text-sm md:text-lg text-gray-400 break-keep leading-relaxed"
         >
-          고민하는 순간 마감됩니다. 지금 사전예약하세요
+          유료화 후에는 건당 과금됩니다. 지금 신청하고 <span className="text-blue-400 font-semibold">7일간 한도 없이</span> 마음껏 사용하세요.
         </motion.p>
       </div>
 
@@ -197,13 +200,19 @@ export function PreRegisterForm() {
               </span>
             </li>
 
-            {/* 2. Unlimited Access (Cyan Highlight) */}
-            <li className="flex items-center gap-3 md:gap-4">
-              <div className="flex-shrink-0 w-7 h-7 md:w-6 md:h-6 rounded-full bg-cyan-500/10 flex items-center justify-center shadow-[0_0_8px_rgba(6,182,212,0.5)] border border-cyan-500/30">
-                <Check className="text-cyan-400 w-4 h-4 md:w-4 md:h-4" />
+            {/* 2. Analysis & Roadmap (Updated) */}
+            <li className="flex flex-col gap-1">
+              <div className="flex items-center gap-3 md:gap-4">
+                <div className="flex-shrink-0 w-7 h-7 md:w-6 md:h-6 rounded-full bg-cyan-500/10 flex items-center justify-center shadow-[0_0_8px_rgba(6,182,212,0.5)] border border-cyan-500/30">
+                  <Check className="text-cyan-400 w-4 h-4 md:w-4 md:h-4" />
+                </div>
+                <span className="text-sm sm:text-base md:text-xl break-keep">
+                  네이버 스마트스토어 분석 <span className="text-cyan-400 font-bold">'무제한'</span>
+                </span>
               </div>
-              <span className="text-sm sm:text-base md:text-xl break-keep">
-                AI 분석 및 제안서 생성 <span className="text-cyan-400 font-bold">'무제한'</span> 제공
+              {/* The Roadmap Text */}
+              <span className="ml-9 md:ml-8 text-xs md:text-sm text-gray-500 font-medium tracking-tight break-keep">
+                (메타, 구글 등 추가 플랫폼 순차 오픈 예정)
               </span>
             </li>
 
@@ -381,19 +390,19 @@ export function PreRegisterForm() {
             <div className="flex flex-col gap-2">
               <label htmlFor="message" className="block text-sm md:text-lg font-medium text-white mb-2 md:mb-3 break-keep">
                 여러분의 '불편함'이 LinkPitch의 '기능'이 됩니다. <span className="text-gray-500">(선택)</span>
-              </label>
+                  </label>
 
-              <textarea
+                      <textarea
                 {...register('message')}
                 id="message"
                 placeholder="원하는 추가 기능이나 바라는 점을 자유롭게 적어주세요"
-                rows={3}
+                        rows={3}
                 className="w-full bg-[#1C1C1C] rounded-xl border-none text-white px-4 md:px-5 py-3 md:py-4 text-base focus:ring-2 focus:ring-blue-500 outline-none placeholder:text-gray-600 resize-none"
-              />
+                      />
               {errors.message && (
                 <p className="mt-1 md:mt-2 text-sm text-red-400">{errors.message.message}</p>
-              )}
-            </div>
+                  )}
+                </div>
 
           {/* Privacy Agreement */}
           <div className="pt-4 border-t border-white/10">
@@ -416,20 +425,20 @@ export function PreRegisterForm() {
 
             {/* Submit Button */}
             <div className="flex justify-center mt-8 md:mt-6">
-              <button
-                type="submit"
-                disabled={isSubmitting}
+            <button
+              type="submit"
+              disabled={isSubmitting}
                 className="w-full h-auto min-h-[60px] py-4 px-6 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-bold text-base md:text-xl shadow-[0_0_20px_rgba(59,130,246,0.4)] hover:scale-[1.02] transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 break-keep leading-snug"
-              >
-                {isSubmitting ? (
+            >
+              {isSubmitting ? (
                   <div className="flex items-center justify-center gap-3">
                     <div className="w-6 h-6 md:w-5 md:h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     <span>처리 중...</span>
-                  </div>
-                ) : (
+                </div>
+              ) : (
                   '[ 무제한 이용권 지금 확보하기 ]'
-                )}
-              </button>
+              )}
+            </button>
             </div>
 
           <p className="text-sm md:text-xs text-center text-gray-600 mt-4 md:mt-2">

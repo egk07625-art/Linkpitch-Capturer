@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useEffect, useState } from 'react';
-import { ArrowUp } from 'lucide-react';
+import { ArrowUp, Zap } from 'lucide-react';
 
 // Apple-style easing curve
 const springEase = 'easeOut' as const;
@@ -185,44 +185,115 @@ export function HeroSection() {
           transition={{ duration: 0.8, ease: springEase, delay: 0.2 }}
           className="inline-flex mb-8 md:mb-10"
         >
-          <div className="rounded-full border border-blue-500/30 bg-blue-500/10 backdrop-blur-sm text-blue-400 px-6 py-3 text-sm md:text-base font-semibold leading-relaxed break-keep">
-            이제 승부처는 '운영'이 아니라 '분석'입니다.
+          <div className="inline-block px-4 py-1.5 rounded-full bg-cyan-950/30 border border-cyan-500/30 backdrop-blur-md shadow-[0_0_15px_rgba(6,182,212,0.2)]">
+            <span className="text-cyan-400 text-xs md:text-sm font-bold tracking-wide break-keep">
+              퍼포먼스 마케터 스마트스토어 영업 자동화 AI Tool
+            </span>
           </div>
         </motion.div>
 
-        {/* Headline - Second to appear */}
+        {/* Mobile Headline - Same style as Desktop */}
         <motion.h1
           initial={{ y: 40, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.8, ease: springEase, delay: 0.4 }}
-          className="text-3xl sm:text-4xl md:text-7xl lg:text-8xl font-black tracking-tight leading-tight text-center mb-8 md:mb-10 px-2 md:px-4 break-keep"
+          className="md:hidden text-2xl sm:text-3xl font-black tracking-tight leading-tight text-center mb-8 px-2 break-keep"
         >
-          {/* Line 1: Simple Text */}
-          <div className="flex items-center justify-center gap-3 md:gap-4 mb-3 md:mb-4 flex-wrap">
-            <span className="text-white font-medium">커스텀 제안서 작성</span>
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-600 tabular-nums font-bold">
+          {/* Line 1: Proposal Writing */}
+          <span className="block mb-2">
+            스마트스토어 제안서 작성{' '}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-600 drop-shadow-[0_0_25px_rgba(6,182,212,0.6)] tabular-nums font-bold">
               20분
             </span>
-          </div>
+          </span>
 
-          {/* Line 2: Harmonious Counter */}
-          <div className="flex items-center justify-center gap-2 md:gap-3 flex-wrap">
-            <span className="text-white font-medium">미팅 성사율은</span>
-            <CountUpCounter end={300} duration={2.5} />
-            <span className="text-white font-medium">상승</span>
-          </div>
+          {/* Line 2: Double Metrics */}
+          <span className="block">
+            회신율{' '}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-600 drop-shadow-[0_0_25px_rgba(6,182,212,0.6)] tabular-nums font-bold">
+              400%
+            </span>
+            , 미팅률{' '}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-600 drop-shadow-[0_0_25px_rgba(6,182,212,0.6)] tabular-nums font-bold">
+              300%
+            </span>{' '}
+            상승
+          </span>
         </motion.h1>
 
-        {/* Sub-headline - Third to appear */}
+        {/* Desktop Headline - Second to appear */}
+        <motion.h1
+          initial={{ y: 40, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.8, ease: springEase, delay: 0.4 }}
+          className="hidden md:block text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-black tracking-tight leading-tight text-center mb-8 md:mb-10 px-2 md:px-4 break-keep"
+        >
+          {/* Line 1: Proposal Writing */}
+          <span className="block mb-2">
+            스마트스토어 제안서 작성{' '}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-600 drop-shadow-[0_0_25px_rgba(6,182,212,0.6)] tabular-nums font-bold">
+              20분
+            </span>
+          </span>
+
+          {/* Line 2: Double Metrics */}
+          <span className="block">
+            회신율{' '}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-600 drop-shadow-[0_0_25px_rgba(6,182,212,0.6)] tabular-nums font-bold">
+              400%
+            </span>
+            , 미팅률{' '}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-600 drop-shadow-[0_0_25px_rgba(6,182,212,0.6)] tabular-nums font-bold">
+              300%
+            </span>{' '}
+            상승
+          </span>
+        </motion.h1>
+
+        {/* Mobile Sub-copy - Optimized for Readability */}
+        <motion.div
+          initial={{ y: 40, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.8, ease: springEase, delay: 0.6 }}
+          className="md:hidden text-sm sm:text-base text-gray-300 font-medium leading-loose break-keep max-w-lg mx-auto mb-12 px-6"
+        >
+          <p>
+            아직도 매일 스토어명만 수정하는
+            <br />
+            <span className="text-red-400 font-bold">
+              '복붙 메일'
+            </span>
+            수십통씩 뿌리시나요?
+          </p>
+
+          <div className="h-4"></div>
+
+          <p>
+            지겨운 '단순 반복'의 굴레, 오늘부로 끊어내세요.
+            <br />
+            <span className="text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">LinkPitch</span>가 당신을 <span className="text-red-400 font-bold">'비효율의 늪'</span>에서
+            <br />
+            완벽하게 해방시킵니다.
+          </p>
+        </motion.div>
+
+        {/* Desktop Sub-headline - Third to appear */}
         <motion.p
           initial={{ y: 40, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.8, ease: springEase, delay: 0.6 }}
-          className="text-sm sm:text-base md:text-xl lg:text-2xl text-gray-400 max-w-3xl mx-auto mb-12 md:mb-14 leading-relaxed px-4 md:px-6 break-keep"
+          className="hidden md:block text-xl lg:text-2xl text-gray-400 max-w-3xl mx-auto mb-12 md:mb-14 leading-relaxed px-4 md:px-6 break-keep"
         >
-          AI 정밀 분석으로 소구점을 찾고, '개인 맞춤 이메일'로 전환합니다.
-          <br className="hidden md:block" />
-          5시간 걸리던 설득의 과정, 이제 20분이면 충분합니다.
+          아직도 매일 스토어명만 수정하는{' '}
+          <span className="text-red-400 font-bold">'복붙 메일'</span> 수십통씩 뿌리시나요?
+          <br />
+          지겨운 '단순 반복'의 굴레, 오늘부로 끊어내세요.
+          <br />
+          <span className="text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">LinkPitch</span>가 당신을{' '}
+          <span className="text-red-400 font-bold">
+            '비효율의 늪'
+          </span>
+          에서 해방시킵니다.
         </motion.p>
 
         {/* Scaled-Up Glass Timer - Fourth to appear */}
