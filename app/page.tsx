@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import Script from 'next/script';
 import { AppleNavbar } from '@/components/landing/apple-navbar';
 import { HeroSection } from '@/components/landing/hero-section';
 import { ProblemSection } from '@/components/landing/problem-section';
@@ -62,9 +63,37 @@ export default function LandingPage() {
     checkGtag();
   }, []);
   return (
-    <div className="min-h-screen bg-[#050505] text-white font-sans antialiased overflow-x-hidden">
-      {/* Navigation */}
-      <AppleNavbar />
+    <>
+      {/* GA4 설치 코드 - 랜딩 페이지에만 적용 */}
+      <Script
+        src="https://www.googletagmanager.com/gtag/js?id=G-E6572JB840"
+        strategy="afterInteractive"
+      />
+      <Script id="google-analytics" strategy="afterInteractive">
+        {`
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+
+          // URL에서 UTM 파라미터 추출
+          const urlParams = new URLSearchParams(window.location.search);
+          const utmParams = {};
+          if (urlParams.get('utm_source')) utmParams.utm_source = urlParams.get('utm_source');
+          if (urlParams.get('utm_medium')) utmParams.utm_medium = urlParams.get('utm_medium');
+          if (urlParams.get('utm_campaign')) utmParams.utm_campaign = urlParams.get('utm_campaign');
+          if (urlParams.get('utm_term')) utmParams.utm_term = urlParams.get('utm_term');
+          if (urlParams.get('utm_content')) utmParams.utm_content = urlParams.get('utm_content');
+
+          gtag('config', 'G-E6572JB840', {
+            send_page_view: true,
+            ...utmParams
+          });
+        `}
+      </Script>
+
+      <div className="min-h-screen bg-[#050505] text-white font-sans antialiased overflow-x-hidden">
+        {/* Navigation */}
+        <AppleNavbar />
 
       {/* Hero Section */}
       <HeroSection />
@@ -93,8 +122,9 @@ export default function LandingPage() {
       {/* Pre-registration Form */}
       <PreRegisterForm />
 
-      {/* Footer */}
-      <AppleFooter />
-    </div>
+        {/* Footer */}
+        <AppleFooter />
+      </div>
+    </>
   );
 }
