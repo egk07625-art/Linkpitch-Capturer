@@ -48,6 +48,8 @@ export interface GeneratedEmail {
   report_html: string;
   /** 리포트 HTML (편집용 - 순수 본문) */
   report_html_editable: string;
+  /** 리포트 마크다운 (편집용) */
+  report_markdown?: string;
   /** 스토어명 */
   store_name: string;
   /** 카테고리 */
@@ -100,6 +102,7 @@ export interface CreateGeneratedEmailInput {
 export interface UpdateGeneratedEmailInput {
   report_html?: string;
   report_html_editable?: string;
+  report_markdown?: string;
   store_name?: string;
   category?: string;
   tier?: Tier;
