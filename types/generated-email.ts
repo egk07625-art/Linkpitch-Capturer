@@ -56,10 +56,22 @@ export interface GeneratedEmail {
   category: string;
   /** 티어 */
   tier?: Tier;
-  /** 이메일 본문 (솔로프레너용) */
+  /** 이메일 본문 (통합 필드 - n8n에서 사용) */
+  email_body?: string;
+  /** 이메일 본문 (솔로프레너용 - 레거시) */
   email_body_solopreneur?: string;
-  /** 이메일 본문 (기업용) */
+  /** 이메일 본문 (기업용 - 레거시) */
   email_body_corporate?: string;
+  /** 발행 회사명 */
+  issuing_company?: string;
+  /** 리포트 제목 */
+  report_title?: string;
+  /** 리포트 파일명 */
+  report_file_name?: string;
+  /** 진단 유형 (Rescue 등) */
+  diagnosis_type?: string;
+  /** 상담 URL */
+  consultation_url?: string;
   /** 이메일 제목들 (JSONB) */
   email_subjects: EmailSubjects;
   /** 상태 */

@@ -7,18 +7,34 @@ import type { GeneratedEmail } from '@/types/generated-email';
 import {
   Mail, FileText, Send, Save, ArrowLeft, Sparkles, ChevronDown, ChevronRight,
   Plus, X, Folder, FolderOpen, Trash2, Edit2, Check, LayoutTemplate, HelpCircle, FileOutput, ShieldCheck, Clock,
-  BarChart2, TrendingUp
+  BarChart2, TrendingUp, TrendingDown, Search, Zap, Link as LinkIcon, Target, Map, MousePointer2, CheckCircle2, Cpu, Coins, UserCheck, Navigation
 } from 'lucide-react';
 import Editor from '@monaco-editor/react';
 import { toast } from 'sonner';
 
-// [Design] 아이콘 매핑
-const SUBJECT_CATEGORIES: Record<string, { label: string, icon: any }> = {
-  metric_direct: { label: "지표 직격형", icon: BarChart2 },
-  soft_fomo: { label: "경쟁 심리형", icon: TrendingUp },
-  curiosity: { label: "호기심 유발형", icon: HelpCircle },
-  report_bait: { label: "리포트 제안형", icon: FileOutput },
-  plain_trust: { label: "신뢰 기반형", icon: ShieldCheck }
+// [Design] Step별 제목 카테고리 정의
+const STEP_SUBJECT_CATEGORIES: Record<number, Record<string, { label: string, icon: any }>> = {
+  1: {
+    data_trail: { label: "데이터 궤적 추적형", icon: BarChart2 },
+    system_defect: { label: "시스템적 결함 진단형", icon: Search },
+    shadow_cost: { label: "그림자 매몰 비용형", icon: TrendingDown },
+    precision_audit: { label: "전용 정밀 감사형", icon: ShieldCheck },
+    bottleneck_impact: { label: "퍼스트뷰 병목 타격형", icon: Zap }
+  },
+  2: {
+    followup_design: { label: "후속 설계 연결형", icon: LinkIcon },
+    tactical_fix: { label: "전술적 자산 교정형", icon: Target },
+    revenue_rebound: { label: "수익 지표 반등형", icon: TrendingUp },
+    private_blueprint: { label: "비공개 블루프린트형", icon: Map },
+    psy_trigger: { label: "심리 트리거 배치형", icon: MousePointer2 }
+  },
+  3: {
+    sales_conclusion: { label: "매출 확정 결론형", icon: CheckCircle2 },
+    integrated_ops: { label: "통합 운영 시스템형", icon: Cpu },
+    cashflow_sim: { label: "현금 흐름 시뮬레이션형", icon: Coins },
+    director_rx: { label: "수석 디렉터 처방형", icon: UserCheck },
+    action_roadmap: { label: "실전 실행 로드맵형", icon: Navigation }
+  }
 };
 
 // [Types]
@@ -52,8 +68,9 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
   // UI State
   const [activeStep, setActiveStep] = useState(1);
   const [activeTab, setActiveTab] = useState<'email' | 'report'>('email');
-  const [activeSubjectCategory, setActiveSubjectCategory] = useState<string>('metric_direct');
+  const [activeSubjectCategory, setActiveSubjectCategory] = useState<string>(''); // 초기화 로직은 useEffect에서 처리
   const [selectedSubjectText, setSelectedSubjectText] = useState('');
+  const [subjectEdits, setSubjectEdits] = useState<Record<string, string>>({});
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [reportMarkdown, setReportMarkdown] = useState('');
@@ -75,11 +92,27 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
   // --- Data Fetching ---
   useEffect(() => {
     const fetchData = async () => {
+      console.log('[InsightMixer] Fetching data for prospect:', prospectId);
       setLoading(true);
       const { data: prospectData } = await supabase.from('prospects').select('*').eq('id', prospectId).single();
-      if (prospectData) setProspect(prospectData);
-      const { data: emailData } = await supabase.from('generated_emails').select('*').eq('prospect_id', prospectId).order('step_number', { ascending: true }).order('created_at', { ascending: false });
-      if (emailData && emailData.length > 0) setAllStepsData(emailData as GeneratedEmail[]);
+      if (prospectData) {
+        setProspect(prospectData);
+        console.log('[InsightMixer] Prospect data loaded:', prospectData.store_name);
+      }
+      
+      const { data: emailData } = await supabase
+        .from('generated_emails')
+        .select('*')
+        .eq('prospect_id', prospectId)
+        .order('step_number', { ascending: true })
+        .order('created_at', { ascending: false });
+
+      if (emailData && emailData.length > 0) {
+        console.log('[InsightMixer] Email data loaded:', emailData.length, 'items');
+        setAllStepsData(emailData as GeneratedEmail[]);
+      } else {
+        console.log('[InsightMixer] No email data found for this prospect.');
+      }
       setLoading(false);
     };
     fetchData();
@@ -91,38 +124,96 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
   // Subject Parsing
   let subjectOptions: Record<string, string[]> = {};
   try {
-    const rawSubjects = currentStepData?.email_subjects;
-    if (typeof rawSubjects === 'string') {
-      subjectOptions = JSON.parse(rawSubjects);
-    } else if (typeof rawSubjects === 'object' && rawSubjects !== null) {
-      Object.entries(rawSubjects).forEach(([key, value]) => {
-        if (Array.isArray(value)) {
-          subjectOptions[key] = value;
-        } else if (typeof value === 'string') {
-          subjectOptions[key] = [value];
+      const rawSubjects = currentStepData?.email_subjects;
+      const parsed = typeof rawSubjects === 'string' ? JSON.parse(rawSubjects) : rawSubjects;
+      
+      const categories = STEP_SUBJECT_CATEGORIES[activeStep] ? Object.keys(STEP_SUBJECT_CATEGORIES[activeStep]) : [];
+
+      if (Array.isArray(parsed)) {
+        if (parsed.length === 10 && categories.length === 5) {
+          // 10개 제목이 오면 5개 카테고리에 순서대로 2개씩 매핑
+          categories.forEach((catKey, idx) => {
+            subjectOptions[catKey] = [parsed[idx * 2], parsed[idx * 2 + 1]];
+          });
+        } else if (parsed.length === 5 && categories.length === 5) {
+          // 5개 제목이 오면 5개 카테고리에 순서대로 1:1 매핑
+          categories.forEach((catKey, idx) => {
+            subjectOptions[catKey] = [parsed[idx]];
+          });
+        } else {
+          // 그 외에는 현재 카테고리에 몰아넣기 (폴백)
+          subjectOptions[activeSubjectCategory] = parsed;
         }
-      });
-    }
+      } else if (typeof parsed === 'object' && parsed !== null) {
+        Object.entries(parsed).forEach(([key, value]) => {
+          if (Array.isArray(value)) {
+            subjectOptions[key] = value;
+          } else if (typeof value === 'string') {
+            subjectOptions[key] = [value];
+          }
+        });
+
+        if (!subjectOptions[activeSubjectCategory] || subjectOptions[activeSubjectCategory].length === 0) {
+          const firstAvailable = Object.values(subjectOptions).find(arr => arr.length > 0);
+          if (firstAvailable) subjectOptions[activeSubjectCategory] = firstAvailable;
+        }
+      }
   } catch (e) {
     console.error('[InsightMixer] email_subjects 파싱 실패:', e);
     subjectOptions = {};
   }
 
   const getCleanBody = () => {
-    // 단일화: solopreneur 필드를 우선 사용하고 없으면 corporate 사용
-    const rawBody = currentStepData?.email_body_solopreneur || currentStepData?.email_body_corporate;
-    return rawBody ? rawBody.replace(/\n/g, '') : "데이터 로딩 중...";
+    // n8n에서 생성한 통합 필드(email_body)를 최우선으로 사용
+    const rawBody = currentStepData?.email_body || currentStepData?.email_body_solopreneur || currentStepData?.email_body_corporate;
+    
+    if (!rawBody) {
+      if (loading) return "데이터 로딩 중...";
+      return "생성된 이메일 본문 데이터가 없습니다. n8n 워크플로우를 확인해주세요.";
+    }
+
+    return rawBody.replace(/\n\n/g, '<br><br>').replace(/\n/g, '<br>');
   };
 
   const currentBodyHtml = getCleanBody();
   const reportHtml = currentStepData?.report_html_editable || "<p class='text-zinc-500 text-sm'>생성된 리포트가 없습니다.</p>";
+  useEffect(() => {
+    if (activeStep) {
+      const stepCategories = STEP_SUBJECT_CATEGORIES[activeStep];
+      if (stepCategories) {
+        const firstCategoryKey = Object.keys(stepCategories)[0];
+        setActiveSubjectCategory(firstCategoryKey);
+        setSelectedSubjectText('');
+      }
+    }
+  }, [activeStep]);
+
   const currentCategorySubjects = subjectOptions?.[activeSubjectCategory] || [];
+
+  // 현재 활성화된 카테고리의 특정 인덱스 편집 텍스트 가져오기 헬퍼
+  const getDisplaySubject = (idx: number, original: string) => {
+    const editKey = `${activeStep}_${activeSubjectCategory}_${idx}`;
+    return subjectEdits[editKey] || original;
+  };
+
+  const handleSubjectEdit = (idx: number, newText: string) => {
+    const editKey = `${activeStep}_${activeSubjectCategory}_${idx}`;
+    setSubjectEdits(prev => ({ ...prev, [editKey]: newText }));
+  };
 
   useEffect(() => {
     if (currentCategorySubjects.length > 0 && !selectedSubjectText) {
-      setSelectedSubjectText(currentCategorySubjects[0]);
+      setSelectedSubjectText(getDisplaySubject(0, currentCategorySubjects[0]));
     }
   }, [currentCategorySubjects, selectedSubjectText]);
+
+  useEffect(() => {
+    if (currentStepData?.report_markdown) {
+      setReportMarkdown(currentStepData.report_markdown);
+    } else {
+      setReportMarkdown('');
+    }
+  }, [currentStepData]);
 
   // --- [Folder Management Logic] ---
 
@@ -448,74 +539,99 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
 
         {/* [Center Panel] Editor */}
         <main className="flex-1 bg-[#050505] flex flex-col relative min-w-0">
-
-          {/* Step Navigator */}
-          <div className="h-16 flex items-center justify-center gap-2 bg-[#050505] mt-4">
-            {[1, 2, 3].map((step) => {
-              const hasData = allStepsData.some(d => d.step_number === step);
-              const isActive = activeStep === step;
-              return (
-                <button
-                  key={step}
-                  onClick={() => { setActiveStep(step); setActiveSubjectCategory('metric_direct'); setSelectedSubjectText(''); }}
-                  className={`h-9 px-5 rounded-full text-xs font-bold transition-all flex items-center gap-2 border ${isActive ? 'bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.15)]' : hasData ? 'bg-[#111] text-zinc-400 border-[#333] hover:border-zinc-500 hover:text-zinc-200' : 'bg-[#0A0A0A] text-zinc-800 border-[#222] cursor-not-allowed'}`}
-                >
-                  <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] ${isActive ? 'bg-black text-white' : 'bg-[#222] text-zinc-600'}`}>{step}</span>
-                  <span>Step</span>
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-10 md:p-14 no-scrollbar">
-            <div className="max-w-4xl mx-auto space-y-12">
+          
+          {/* Sticky Header Area: Navigator + Mode Switcher */}
+          <div className="sticky top-0 z-30 bg-[#050505]/80 backdrop-blur-xl border-b border-[#111] px-10 md:px-12 py-6">
+            <div className="max-w-[1400px] mx-auto space-y-6">
+              {/* Step Navigator */}
+              <div className="flex items-center justify-center gap-2">
+                {[1, 2, 3].map((step) => {
+                  const hasData = allStepsData.some(d => d.step_number === step);
+                  const isActive = activeStep === step;
+                  return (
+                    <button
+                      key={step}
+                      onClick={() => { setActiveStep(step); }}
+                      className={`h-11 px-6 rounded-full text-sm font-bold transition-all flex items-center gap-2 border ${isActive ? 'bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.15)]' : hasData ? 'bg-[#111] text-zinc-400 border-[#333] hover:border-zinc-500 hover:text-zinc-200' : 'bg-[#0A0A0A] text-zinc-800 border-[#222] cursor-not-allowed'}`}
+                    >
+                      <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] ${isActive ? 'bg-black text-white' : 'bg-[#222] text-zinc-600'}`}>{step}</span>
+                      <span>Step</span>
+                    </button>
+                  );
+                })}
+              </div>
 
               {/* Mode Switcher */}
               <div className="flex justify-center">
                 <div className="p-1.5 bg-[#111] border border-[#222] rounded-xl flex items-center shadow-inner">
-                  <button onClick={() => setActiveTab('email')} className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab === 'email' ? 'bg-[#2C2C2E] text-white shadow-sm border border-[#333]' : 'text-zinc-500 hover:text-zinc-300'}`}>
-                    <Mail className="w-4 h-4" /> 이메일
+                  <button onClick={() => setActiveTab('email')} className={`flex items-center gap-2 px-8 py-3 rounded-lg text-base font-bold transition-all ${activeTab === 'email' ? 'bg-[#2C2C2E] text-white shadow-sm border border-[#333]' : 'text-zinc-500 hover:text-zinc-300'}`}>
+                    <Mail className="w-5 h-5" /> 이메일
                   </button>
-                  <button onClick={() => setActiveTab('report')} className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab === 'report' ? 'bg-[#2C2C2E] text-white shadow-sm border border-[#333]' : 'text-zinc-500 hover:text-zinc-300'}`}>
-                    <FileText className="w-4 h-4" /> 리포트
+                  <button onClick={() => setActiveTab('report')} className={`flex items-center gap-2 px-8 py-3 rounded-lg text-base font-bold transition-all ${activeTab === 'report' ? 'bg-[#2C2C2E] text-white shadow-sm border border-[#333]' : 'text-zinc-500 hover:text-zinc-300'}`}>
+                    <FileText className="w-5 h-5" /> 리포트
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-10 md:px-12 md:py-8 no-scrollbar">
+            <div className="max-w-[1400px] mx-auto space-y-8">
 
               {activeTab === 'email' && (
                 <div className="space-y-10 animate-in fade-in slide-in-from-bottom-2 duration-300">
 
                   {/* Subject Picker */}
-                  <div className="space-y-4">
-                    <label className="flex items-center gap-2 text-xs font-bold text-zinc-500 uppercase tracking-widest">
-                      <Sparkles className="w-3.5 h-3.5 text-blue-500" /> Subject Options
+                  <div className="space-y-5">
+                    <label className="flex items-center gap-2 text-sm font-bold text-zinc-500 uppercase tracking-widest">
+                      <Sparkles className="w-4 h-4 text-blue-500" /> Subject Options
                     </label>
-                    <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-                      {Object.keys(SUBJECT_CATEGORIES).map((key) => {
-                        const Icon = SUBJECT_CATEGORIES[key].icon;
+                    <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
+                      {STEP_SUBJECT_CATEGORIES[activeStep] && Object.keys(STEP_SUBJECT_CATEGORIES[activeStep]).map((key) => {
+                        const category = STEP_SUBJECT_CATEGORIES[activeStep][key];
+                        const Icon = category.icon;
                         return (
-                          <button key={key} onClick={() => setActiveSubjectCategory(key)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium transition-all border whitespace-nowrap ${activeSubjectCategory === key ? 'bg-blue-500/10 text-blue-400 border-blue-500/30 shadow-[0_0_10px_rgba(59,130,246,0.1)]' : 'bg-[#111] text-zinc-500 border-[#222] hover:border-zinc-700 hover:text-zinc-300'}`}>
-                            <Icon className="w-3.5 h-3.5" />{SUBJECT_CATEGORIES[key].label}
+                          <button key={key} onClick={() => setActiveSubjectCategory(key)} className={`flex items-center gap-2.5 px-5 py-3 rounded-xl text-sm font-bold transition-all border whitespace-nowrap ${activeSubjectCategory === key ? 'bg-blue-500/10 text-blue-400 border-blue-500/30 shadow-[0_0_10px_rgba(59,130,246,0.1)]' : 'bg-[#111] text-zinc-500 border-[#222] hover:border-zinc-700 hover:text-zinc-300'}`}>
+                            <Icon className="w-4 h-4" />{category.label}
                           </button>
                         )
                       })}
                     </div>
                     <div className="grid grid-cols-1 gap-3">
                       {currentCategorySubjects.length > 0 ? (
-                        currentCategorySubjects.map((subject, idx) => (
-                          <div key={idx} onClick={() => setSelectedSubjectText(subject)} className={`group px-6 py-4 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${selectedSubjectText === subject ? 'bg-[#1C1C1E] border-blue-500/50 ring-1 ring-blue-500/20' : 'bg-[#0F0F0F] border-[#222] hover:border-zinc-600'}`}>
-                            <p className={`text-base font-medium ${selectedSubjectText === subject ? 'text-white' : 'text-zinc-400 group-hover:text-zinc-200'}`}>{subject}</p>
-                            {selectedSubjectText === subject && <Check className="w-5 h-5 text-blue-500" />}
-                          </div>
-                        ))
+                        currentCategorySubjects.map((originalSubject, idx) => {
+                          const displaySubject = getDisplaySubject(idx, originalSubject);
+                          const isSelected = selectedSubjectText === displaySubject;
+
+                          return (
+                            <div 
+                              key={idx} 
+                              onClick={() => setSelectedSubjectText(displaySubject)} 
+                              className={`group px-6 py-4 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${isSelected ? 'bg-[#1C1C1E] border-blue-500/50 ring-1 ring-blue-500/20' : 'bg-[#0F0F0F] border-[#222] hover:border-zinc-600'}`}
+                            >
+                              <div className="flex-1 mr-4">
+                                <div
+                                  contentEditable
+                                  suppressContentEditableWarning
+                                  className={`text-base font-medium outline-none ${isSelected ? 'text-white' : 'text-zinc-400 group-hover:text-zinc-200'}`}
+                                  onInput={(e) => handleSubjectEdit(idx, e.currentTarget.innerText)}
+                                  onClick={(e) => e.stopPropagation()} 
+                                >
+                                  {displaySubject}
+                                </div>
+                              </div>
+                              {isSelected && <Check className="w-5 h-5 text-blue-500 shrink-0" />}
+                            </div>
+                          );
+                        })
                       ) : <div className="p-6 rounded-xl border border-[#222] bg-[#0F0F0F] text-zinc-600 text-sm text-center">제목 없음</div>}
                     </div>
                   </div>
 
                   {/* Body Editor (Drop Target) */}
-                  <div className="space-y-4">
-                      <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">
-                        <FileText className="w-3.5 h-3.5 text-blue-500" /> Body Content
+                  <div className="space-y-5">
+                      <label className="text-sm font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-blue-500" /> Body Content
                       </label>
 
                     <div

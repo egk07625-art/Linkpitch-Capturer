@@ -5,6 +5,7 @@ import type { LocalizationResource } from "@clerk/types";
 import { Geist, Geist_Mono, Inter, JetBrains_Mono } from "next/font/google";
 
 import { SyncUserProvider } from "@/components/providers/sync-user-provider";
+import { AuthBridge } from "@/components/providers/auth-bridge";
 import { Toaster } from "sonner";
 import "./globals.css";
 
@@ -87,6 +88,7 @@ export default function RootLayout({
           }}
         >
           <SyncUserProvider>
+            <AuthBridge />
             {children}
             <Toaster position="top-center" richColors />
           </SyncUserProvider>

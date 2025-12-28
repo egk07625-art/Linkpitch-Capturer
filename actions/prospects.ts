@@ -26,19 +26,22 @@ async function getCurrentUserId(): Promise<string | null> {
   return data?.id || null;
 }
 
-/**
- * 사용자의 모든 prospects 조회
- * @param status - CRM 상태 필터 (선택)
- * @param limit - 조회 개수 제한
- */
-export async function getProspects(options?: {
+export type GetProspectsOptions = {
   status?: CRMStatus;
   limit?: number;
-}): Promise<{ data: Prospect[] | null; error: string | null }> {
+  offset?: number;
+  search?: string;
+};
+
+/**
+ * 사용자의 모든 prospects 조회
+ * @param options - 조회 옵션 (status, limit, offset, search)
+ */
+export async function getProspects(options?: GetProspectsOptions): Promise<Prospect[]> {
   try {
     const userId = await getCurrentUserId();
     if (!userId) {
-      return { data: null, error: '인증이 필요합니다.' };
+      return [];
     }
 
     const supabase = getServiceRoleClient();
@@ -53,22 +56,73 @@ export async function getProspects(options?: {
       query = query.eq('crm_status', options.status);
     }
 
+    if (options?.search) {
+      query = query.or(`name.ilike.%${options.search}%,store_name.ilike.%${options.search}%,contact_email.ilike.%${options.search}%`);
+    }
+
     if (options?.limit) {
       query = query.limit(options.limit);
+    }
+
+    if (options?.offset) {
+      query = query.range(options.offset, options.offset + (options.limit || 20) - 1);
     }
 
     const { data, error } = await query;
 
     if (error) {
       console.error('prospects 조회 실패:', error);
-      return { data: null, error: error.message };
+      return [];
     }
 
-    return { data: data as Prospect[], error: null };
+    return (data as Prospect[]) || [];
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : '알 수 없는 오류';
     console.error('prospects 조회 중 예외:', errorMessage);
-    return { data: null, error: errorMessage };
+    return [];
+  }
+}
+
+/**
+ * Prospects 개수 조회
+ * @param options - 필터 옵션
+ */
+export async function getProspectsCount(options?: {
+  status?: CRMStatus;
+  search?: string;
+}): Promise<number> {
+  try {
+    const userId = await getCurrentUserId();
+    if (!userId) {
+      return 0;
+    }
+
+    const supabase = getServiceRoleClient();
+    let query = supabase
+      .from('prospects')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId);
+
+    if (options?.status) {
+      query = query.eq('crm_status', options.status);
+    }
+
+    if (options?.search) {
+      query = query.or(`name.ilike.%${options.search}%,store_name.ilike.%${options.search}%,contact_email.ilike.%${options.search}%`);
+    }
+
+    const { count, error } = await query;
+
+    if (error) {
+      console.error('prospects 개수 조회 실패:', error);
+      return 0;
+    }
+
+    return count || 0;
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : '알 수 없는 오류';
+    console.error('prospects 개수 조회 중 예외:', errorMessage);
+    return 0;
   }
 }
 
@@ -142,6 +196,101 @@ export async function getProspectsCountByStatus(): Promise<{
     const errorMessage = err instanceof Error ? err.message : '알 수 없는 오류';
     console.error('prospects 개수 조회 중 예외:', errorMessage);
     return { data: null, error: errorMessage };
+  }
+}
+
+/**
+ * 새 Prospect 생성
+ */
+export async function createProspect(data: {
+  name: string;
+  contact_name?: string;
+  contact_email: string;
+  contact_phone?: string;
+  url: string;
+  memo?: string;
+  store_name?: string;
+  category?: string;
+}): Promise<void> {
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    throw new Error('인증이 필요합니다.');
+  }
+
+  const supabase = getServiceRoleClient();
+  const { error } = await supabase.from('prospects').insert({
+    user_id: userId,
+    name: data.name,
+    store_name: data.store_name || data.name,
+    contact_name: data.contact_name,
+    contact_email: data.contact_email,
+    contact_phone: data.contact_phone,
+    url: data.url,
+    memo: data.memo,
+    category: data.category,
+    crm_status: 'cold',
+  });
+
+  if (error) {
+    console.error('Prospect 생성 실패:', error);
+    throw new Error(error.message);
+  }
+}
+
+/**
+ * Prospect 정보 업데이트
+ */
+export async function updateProspect(
+  prospectId: string,
+  data: Partial<{
+    name: string;
+    store_name: string;
+    contact_name: string;
+    contact_email: string;
+    contact_phone: string;
+    url: string;
+    memo: string;
+    category: string;
+    crm_status: CRMStatus;
+  }>
+): Promise<void> {
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    throw new Error('인증이 필요합니다.');
+  }
+
+  const supabase = getServiceRoleClient();
+  const { error } = await supabase
+    .from('prospects')
+    .update(data)
+    .eq('id', prospectId)
+    .eq('user_id', userId);
+
+  if (error) {
+    console.error('Prospect 업데이트 실패:', error);
+    throw new Error(error.message);
+  }
+}
+
+/**
+ * Prospect 삭제
+ */
+export async function deleteProspect(prospectId: string): Promise<void> {
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    throw new Error('인증이 필요합니다.');
+  }
+
+  const supabase = getServiceRoleClient();
+  const { error } = await supabase
+    .from('prospects')
+    .delete()
+    .eq('id', prospectId)
+    .eq('user_id', userId);
+
+  if (error) {
+    console.error('Prospect 삭제 실패:', error);
+    throw new Error(error.message);
   }
 }
 

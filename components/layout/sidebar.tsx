@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { UserButton } from "@clerk/nextjs";
+import { UserButton, useUser } from "@clerk/nextjs";
 import { LayoutGrid, Users, Sparkles, Mail, FileText, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -41,6 +41,7 @@ const navigationItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { user, isLoaded } = useUser();
 
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r border-zinc-800/50 bg-zinc-950 hidden md:flex flex-col">
@@ -80,21 +81,39 @@ export function Sidebar() {
         </div>
       </nav>
 
-      {/* Footer */}
+      {/* Footer - User Info */}
       <div className="p-4 border-t border-zinc-800/50">
-        <div className="flex items-center gap-3 px-3 py-2">
-          <UserButton
-            appearance={{
-              elements: {
-                avatarBox: "size-9",
-              },
-            }}
-          />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-zinc-50 truncate">Account</p>
-            <p className="text-xs text-zinc-400 truncate">Manage settings</p>
+        {!isLoaded ? (
+          <div className="flex items-center gap-3 px-3 py-2">
+            <div className="size-9 rounded-full bg-zinc-800 animate-pulse" />
+            <div className="flex-1 min-w-0">
+              <div className="h-4 bg-zinc-800 rounded animate-pulse mb-1" />
+              <div className="h-3 bg-zinc-800 rounded animate-pulse w-2/3" />
+            </div>
           </div>
-        </div>
+        ) : user ? (
+          <div className="flex items-center gap-3 px-3 py-2">
+            <UserButton
+              appearance={{
+                elements: {
+                  avatarBox: "size-9",
+                },
+              }}
+            />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-zinc-50 truncate">
+                {user.fullName || user.primaryEmailAddress?.emailAddress || 'User'}
+              </p>
+              <p className="text-xs text-zinc-400 truncate">
+                {user.primaryEmailAddress?.emailAddress}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="px-3 py-2 text-center">
+            <p className="text-sm text-zinc-400">로그인되지 않음</p>
+          </div>
+        )}
       </div>
     </aside>
   );

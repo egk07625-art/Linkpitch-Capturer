@@ -6,7 +6,12 @@
       "Bash(git commit:*)",
       "Bash(git push:*)",
       "Bash(pnpm build:*)",
-      "Bash(pnpm add:*)"
+      "Bash(pnpm add:*)",
+      "Bash(pnpm supabase:*)",
+      "Bash(if [ -f .env ])",
+      "Bash(then echo \".env file exists\")",
+      "Bash(else echo \".env file not found\")",
+      "Bash(fi)"
     ],
     "deny": [],
     "ask": []

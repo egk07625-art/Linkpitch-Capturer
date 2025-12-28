@@ -28,7 +28,7 @@ export default async function DashboardPage() {
     ]);
 
   const kpis = kpiResult.data;
-  const prospects = prospectsResult?.data || [];
+  const prospects = prospectsResult || [];
   const pipelineStats = pipelineResult.data;
   const activities = activityResult.data;
 
