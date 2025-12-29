@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Mail, Bot, Sparkles, Copy, Check, Send } from 'lucide-react';
+import { Mail, Bot, Sparkles, Copy, Check, Send, Eye } from 'lucide-react';
 import { VisionItem } from '@/types/vision';
 import { SCENARIO_STEPS } from '@/lib/constants/scenario-steps';
 import { cn } from '@/lib/utils';
@@ -11,6 +11,7 @@ import type { GeneratedEmail } from '@/types/generated-email';
 import type { Prospect } from '@/types/prospect';
 import { markEmailAsSent, updateGeneratedEmailContent } from '@/actions/generated-emails';
 import { generateEmailHtml, copyHtmlToClipboard } from '@/lib/email-html-generator';
+import ReportPreviewModal from './ReportPreviewModal';
 
 interface SequencePlaylistProps {
   droppedInsights: VisionItem[];
@@ -91,6 +92,7 @@ export default function SequencePlaylist({
   const [isCopied, setIsCopied] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   const currentScenario = SCENARIO_STEPS.find(s => s.step === currentStep) || SCENARIO_STEPS[0];
 
@@ -286,14 +288,27 @@ export default function SequencePlaylist({
             <div className="bg-zinc-900 border border-white/10 rounded-xl p-6 min-h-[700px] flex flex-col">
 
               {/* Toolbar */}
-              <div className="mb-6 pb-4 border-b border-white/10">
-                <h3 className="text-lg font-semibold text-zinc-100 flex items-center gap-2">
-                  <Sparkles className="size-5 text-amber-400" />
-                  AI 생성 리포트
-                </h3>
-                <p className="text-xs text-zinc-500 mt-1">
-                  Step {currentStep}. {currentScenario.subtitle} - {currentScenario.title}
-                </p>
+              <div className="mb-6 pb-4 border-b border-white/10 flex items-start justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-zinc-100 flex items-center gap-2">
+                    <Sparkles className="size-5 text-amber-400" />
+                    AI 생성 리포트
+                  </h3>
+                  <p className="text-xs text-zinc-500 mt-1">
+                    Step {currentStep}. {currentScenario.subtitle} - {currentScenario.title}
+                  </p>
+                </div>
+                {(currentEmail?.report_markdown || currentEmail?.report_html_editable) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsPreviewOpen(true)}
+                    className="text-zinc-400 hover:text-zinc-100 flex items-center gap-1.5"
+                  >
+                    <Eye className="w-4 h-4" />
+                    프리뷰
+                  </Button>
+                )}
               </div>
 
               {/* Textarea Container */}
@@ -397,6 +412,16 @@ export default function SequencePlaylist({
         )}
 
       </div>
+
+      {/* 리포트 프리뷰 모달 */}
+      <ReportPreviewModal
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        content={currentEmail?.report_markdown || currentEmail?.report_html_editable || reportContent}
+        title={`${prospect?.store_name || prospect?.name || ''} 리포트 프리뷰`}
+        reportUrl={currentEmail?.report_url || (currentEmail?.id ? `${typeof window !== 'undefined' ? window.location.origin : ''}/r/${currentEmail.id}` : '')}
+        ctaText={currentEmail?.cta_text || '리포트 확인하기'}
+      />
     </div>
   );
 }
