@@ -2,24 +2,75 @@
 
 import React, { useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
-import { Copy, Sparkles } from 'lucide-react';
+import { Copy, Sparkles, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { generateEmailHtml, copyHtmlToClipboard } from '@/lib/email-html-generator';
 
 interface StepCardProps {
   step: number;
   title: string;
   defaultContent?: string;
+  /** CTA 버튼 텍스트 (이메일 복사 기능용) */
+  ctaText?: string;
+  /** 리포트 URL (이메일 복사 기능용) */
+  reportUrl?: string;
+  /** 복사 성공 시 콜백 */
+  onCopySuccess?: () => void;
 }
 
-export default function StepCard({ step, title, defaultContent = '' }: StepCardProps) {
+export default function StepCard({
+  step,
+  title,
+  defaultContent = '',
+  ctaText = '리포트 확인하기',
+  reportUrl = '',
+  onCopySuccess,
+}: StepCardProps) {
   const [mode, setMode] = useState<'mail' | 'report'>('mail');
   const [content, setContent] = useState(defaultContent);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
 
   const { setNodeRef, isOver } = useDroppable({
     id: `step-${step}`,
     data: { step, title },
   });
+
+  /**
+   * 이메일 HTML 복사 핸들러
+   * 마크다운 본문과 CTA 버튼을 결합하여 클립보드에 복사합니다.
+   */
+  const handleCopyEmail = async () => {
+    if (!content || !reportUrl) {
+      alert('복사할 내용이 없거나 리포트 URL이 설정되지 않았습니다.');
+      return;
+    }
+
+    try {
+      // 마크다운 → HTML 변환 + CTA 버튼 추가
+      const emailHtml = generateEmailHtml({
+        emailBody: content,
+        ctaText,
+        reportUrl,
+      });
+
+      // 클립보드에 HTML 형식으로 복사
+      const success = await copyHtmlToClipboard(emailHtml);
+
+      if (success) {
+        setIsCopied(true);
+        onCopySuccess?.();
+
+        // 3초 후 복사 상태 초기화
+        setTimeout(() => setIsCopied(false), 3000);
+      } else {
+        alert('클립보드 복사에 실패했습니다. 브라우저 권한을 확인해주세요.');
+      }
+    } catch (error) {
+      console.error('이메일 복사 중 오류:', error);
+      alert('이메일 복사 중 오류가 발생했습니다.');
+    }
+  };
 
   // Simulate AI Regeneration when item is dropped (handled by parent, but visual state here)
   // For now, we'll just expose a way to trigger it or handle it via props if needed.
@@ -71,7 +122,7 @@ export default function StepCard({ step, title, defaultContent = '' }: StepCardP
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -5 }}
               transition={{ duration: 0.2 }}
-              className="h-full"
+              className="h-full space-y-4"
             >
               <textarea
                 value={content}
@@ -79,6 +130,28 @@ export default function StepCard({ step, title, defaultContent = '' }: StepCardP
                 placeholder="이메일 본문을 작성하세요..."
                 className="w-full h-[250px] bg-transparent border-none resize-none text-zinc-300 placeholder:text-zinc-700 focus:outline-none text-base leading-relaxed"
               />
+
+              {/* CTA 버튼 미리보기 */}
+              {ctaText && reportUrl && (
+                <div className="pt-4 border-t border-white/5">
+                  <div className="text-xs font-medium text-zinc-500 mb-3 uppercase tracking-wider">
+                    Button Preview
+                  </div>
+                  <div className="flex justify-center">
+                    <a
+                      href={reportUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-block px-8 py-4 bg-[#1A2B3C] text-white font-bold rounded transition-all hover:bg-[#243749] hover:shadow-lg"
+                    >
+                      {ctaText}
+                    </a>
+                  </div>
+                  <p className="text-xs text-zinc-600 text-center mt-3">
+                    이 버튼이 이메일 하단에 포함됩니다
+                  </p>
+                </div>
+              )}
             </motion.div>
           ) : (
             <motion.div
@@ -133,11 +206,20 @@ export default function StepCard({ step, title, defaultContent = '' }: StepCardP
           <span>AI 재작성</span>
         </button>
 
-        <button 
-          className="p-2 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded-lg transition-all"
-          title="Copy content"
+        <button
+          className={`p-2 rounded-lg transition-all ${
+            isCopied
+              ? 'text-green-500 bg-green-500/10'
+              : 'text-zinc-500 hover:text-white hover:bg-zinc-800'
+          }`}
+          title={isCopied ? 'Copied!' : 'Copy email HTML'}
+          onClick={handleCopyEmail}
         >
-          <Copy className="w-4 h-4" />
+          {isCopied ? (
+            <CheckCircle2 className="w-4 h-4" />
+          ) : (
+            <Copy className="w-4 h-4" />
+          )}
         </button>
       </div>
     </div>

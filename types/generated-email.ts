@@ -72,6 +72,10 @@ export interface GeneratedEmail {
   diagnosis_type?: string;
   /** 상담 URL */
   consultation_url?: string;
+  /** CTA 버튼 텍스트 */
+  cta_text?: string;
+  /** 리포트 URL (공개 링크) */
+  report_url?: string;
   /** 이메일 제목들 (JSONB) */
   email_subjects: EmailSubjects;
   /** 상태 */
@@ -120,6 +124,8 @@ export interface UpdateGeneratedEmailInput {
   tier?: Tier;
   email_body_solopreneur?: string;
   email_body_corporate?: string;
+  cta_text?: string;
+  report_url?: string;
   email_subjects?: EmailSubjects;
   status?: GeneratedEmailStatus;
   sent_at?: string;

@@ -66,6 +66,25 @@ export async function getGeneratedEmailsByProspect(
       return { data: null, error: error.message };
     }
 
+    // 🔍 전체 데이터 객체 구조 확인 (서버 사이드)
+    if (data && data.length > 0) {
+      console.log('[getGeneratedEmailsByProspect] 🔍 전체 데이터 객체 구조:', JSON.stringify(data, null, 2));
+      data.forEach((email, index) => {
+        console.log(`[getGeneratedEmailsByProspect] Email ${index + 1} (step ${email.step_number}):`, {
+          id: email.id,
+          step_number: email.step_number,
+          email_body: email.email_body,
+          email_body_solopreneur: email.email_body_solopreneur,
+          email_body_corporate: email.email_body_corporate,
+          cta_text: email.cta_text,
+          report_url: email.report_url,
+          '전체 키 목록': Object.keys(email),
+        });
+      });
+    } else {
+      console.log('[getGeneratedEmailsByProspect] ⚠️ 데이터가 없습니다.');
+    }
+
     return { data: data as GeneratedEmail[], error: null };
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : '알 수 없는 오류';
