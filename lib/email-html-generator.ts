@@ -51,27 +51,30 @@ export function generateEmailHtml(options: EmailHtmlOptions): string {
   }
 
   // 이메일 앱에 안전한 HTML 구조 (Table 기반)
+  // Gmail, Outlook 등에서 버튼이 뚱뚱해지지 않도록 line-height: 1 필수
   const emailHtml = `
 <div style="font-family: 'Apple SD Gothic Neo', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333333; max-width: 600px; margin: 0 auto;">
   <!-- 본문 내용 -->
   ${bodyHtml}
 
   <!-- CTA 버튼 (Table 방식 - 메일 앱에서 안정적) -->
-  <table cellspacing="0" cellpadding="0" border="0" style="margin: 40px auto; text-align: center;">
+  <table cellspacing="0" cellpadding="0" border="0" style="margin: 32px auto; text-align: center;">
     <tr>
-      <td align="center" bgcolor="#1A2B3C" style="border-radius: 4px; min-width: 200px;">
+      <td align="center" bgcolor="#1A1A1A" style="border-radius: 10px; mso-padding-alt: 0;">
         <a href="${reportUrl}"
            target="_blank"
            rel="noopener noreferrer"
            aria-label="${ctaText}"
            style="display: inline-block;
-                  padding: 16px 32px;
-                  min-height: 44px;
-                  font-size: 16px;
+                  padding: 12px 28px;
+                  font-size: 15px;
                   color: #ffffff;
                   text-decoration: none;
-                  font-weight: bold;
-                  line-height: 1.5;">
+                  font-weight: 600;
+                  letter-spacing: -0.02em;
+                  line-height: 1;
+                  mso-padding-alt: 0;
+                  mso-line-height-rule: exactly;">
           ${ctaText}
         </a>
       </td>

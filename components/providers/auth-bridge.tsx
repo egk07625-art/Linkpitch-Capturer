@@ -57,8 +57,9 @@ export function AuthBridge() {
     loadUserId();
   }, []);
 
-  // 로딩 중이거나 userId가 없으면 렌더링하지 않음
-  if (isLoading || !userId) {
+  // 로딩 중에는 렌더링하지 않음
+  // 로딩 완료 후에는 로그인 여부와 관계없이 bridge-status를 렌더링
+  if (isLoading) {
     return null;
   }
 
@@ -70,15 +71,17 @@ export function AuthBridge() {
         const bridge = document.getElementById('lp-auth-bridge');
         const userId = bridge?.dataset.userId;
       */}
-      <div
-        id="lp-auth-bridge"
-        data-user-id={userId}
-        data-user-email={userEmail}
-        data-bridge-version="1.0"
-        data-bridge-type="auth"
-        style={{ display: 'none' }}
-        aria-hidden="true"
-      />
+      {userId && (
+        <div
+          id="lp-auth-bridge"
+          data-user-id={userId}
+          data-user-email={userEmail}
+          data-bridge-version="1.0"
+          data-bridge-type="auth"
+          style={{ display: 'none' }}
+          aria-hidden="true"
+        />
+      )}
 
       {/*
         백업용 메타 태그 (확장프로그램이 선호하는 방식에 따라 선택)
@@ -87,8 +90,12 @@ export function AuthBridge() {
         const userId = meta?.content;
         const email = document.querySelector('meta[name="lp-user-email"]')?.content;
       */}
-      <meta name="lp-user-id" content={userId} />
+      {userId && <meta name="lp-user-id" content={userId} />}
       {userEmail && <meta name="lp-user-email" content={userEmail} />}
+      {/*
+        bridge-status는 로딩 완료 후 항상 렌더링 (로그인 여부와 무관)
+        Extension이 "로딩 중" vs "로그아웃" 상태를 구분할 수 있게 함
+      */}
       <meta name="lp-bridge-status" content="ready" />
     </>
   );

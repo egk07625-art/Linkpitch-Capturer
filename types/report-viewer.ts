@@ -18,9 +18,10 @@ export interface ReportData {
   id: string;
   prospect_id: string;
   step_number: number;
-  report_html: string | null;
+  report_markdown: string | null;
   theme: string;
   target_type: string;
+  issuing_company: string;
   created_at: string;
 }
 

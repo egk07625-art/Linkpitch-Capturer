@@ -1,14 +1,15 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
+import { useDebouncedCallback } from 'use-debounce';
 import { supabase } from '@/lib/supabase/client';
 import type { GeneratedEmail } from '@/types/generated-email';
 import {
   Mail, FileText, Send, Save, ArrowLeft, Sparkles, ChevronDown, ChevronRight,
   Plus, X, Folder, FolderOpen, Trash2, Edit2, Check, LayoutTemplate, HelpCircle, FileOutput, ShieldCheck, Clock,
   BarChart2, TrendingUp, TrendingDown, Search, Zap, Link as LinkIcon, Target, Map, MousePointer2, CheckCircle2, Cpu, Coins, UserCheck, Navigation,
-  Eye, Pencil, Columns, Copy, Maximize2
+  Eye, Pencil, Columns, Copy, Maximize2, Keyboard
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Editor from '@monaco-editor/react';
@@ -16,6 +17,7 @@ import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { generateEmailHtml, copyHtmlToClipboard } from '@/lib/email-html-generator';
+import { FloatingToolbar } from '@/components/mixer/FloatingToolbar';
 
 // [Design] Step별 제목 카테고리 정의
 const STEP_SUBJECT_CATEGORIES: Record<number, Record<string, { label: string, icon: any }>> = {
@@ -79,10 +81,14 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [reportMarkdown, setReportMarkdown] = useState('');
-  const [reportViewMode, setReportViewMode] = useState<'preview' | 'edit' | 'split'>('preview');
+  const [reportViewMode, setReportViewMode] = useState<'preview' | 'edit' | 'split'>('edit');
   const [isCopied, setIsCopied] = useState(false);
   const [isSubjectCopied, setIsSubjectCopied] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [editorInstance, setEditorInstance] = useState<any>(null); // Monaco 에디터 인스턴스 (툴바용)
+  const [isShortcutsGuideOpen, setIsShortcutsGuideOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [emailBody, setEmailBody] = useState('');
 
   // [Advanced Asset State]
   const [folders, setFolders] = useState<FolderType[]>([
@@ -97,6 +103,15 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
   const activeFolderIdRef = useRef<string>('f1'); // 파일 추가할 타겟 폴더
+  const monacoEditorRef = useRef<any>(null); // Monaco Editor 인스턴스
+  const previewRef = useRef<HTMLDivElement>(null); // 프리뷰 스크롤 동기화용
+  const editorContainerRef = useRef<HTMLDivElement>(null); // 에디터 컨테이너 (툴바 위치 계산용)
+
+  // [Race Condition 방지] 에디터 현재값 추적 (리렌더링 없이)
+  const prevStepRef = useRef<number>(activeStep); // 이전 Step 추적
+  const emailBodyRef = useRef<string>(''); // 이메일 본문 현재값
+  const reportMarkdownRef = useRef<string>(''); // 리포트 마크다운 현재값
+  const isInitialLoadRef = useRef<boolean>(true); // 최초 로드 여부
 
   // --- Data Fetching ---
   useEffect(() => {
@@ -187,7 +202,41 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
     return rawBody.replace(/\n\n/g, '<br><br>').replace(/\n/g, '<br>');
   };
 
-  const currentBodyHtml = getCleanBody();
+  // [수정됨] Step 전환 시에만 에디터 값 초기화 (Race Condition 방지)
+  // currentStepData 변경만으로는 에디터 값을 덮어쓰지 않음
+  useEffect(() => {
+    // 최초 로드 시 또는 Step이 실제로 변경되었을 때만 실행
+    const isStepChanged = prevStepRef.current !== activeStep;
+    const isInitialLoad = isInitialLoadRef.current && currentStepData;
+
+    if ((isStepChanged || isInitialLoad) && currentStepData) {
+      console.log(`[Editor] Step changed or initial load: ${prevStepRef.current} → ${activeStep}`);
+
+      // 이메일 본문 초기화
+      const cleanBody = getCleanBody();
+      setEmailBody(cleanBody);
+      emailBodyRef.current = cleanBody;
+
+      // 리포트 마크다운 초기화
+      const markdown = currentStepData.report_markdown || '';
+      setReportMarkdown(markdown);
+      reportMarkdownRef.current = markdown;
+
+      // Monaco Editor가 있으면 직접 값 설정 (Controlled 우회)
+      if (monacoEditorRef.current && isStepChanged) {
+        monacoEditorRef.current.setValue(markdown);
+      }
+
+      // contentEditable div도 직접 업데이트
+      if (editorRef.current && isStepChanged) {
+        editorRef.current.innerHTML = cleanBody;
+      }
+
+      prevStepRef.current = activeStep;
+      isInitialLoadRef.current = false;
+    }
+  }, [activeStep, currentStepData]);
+
   const reportHtml = currentStepData?.report_html_editable || "<p class='text-zinc-500 text-sm'>생성된 리포트가 없습니다.</p>";
   useEffect(() => {
     if (activeStep) {
@@ -219,13 +268,123 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
     }
   }, [currentCategorySubjects, selectedSubjectText]);
 
+  // [제거됨] 기존 reportMarkdown 초기화 로직 - 위의 통합 useEffect에서 처리
+  // Race Condition 방지를 위해 currentStepData 변경 시 자동 덮어쓰기 제거
+
+  // 외부 클릭 시 단축키 가이드 닫기
   useEffect(() => {
-    if (currentStepData?.report_markdown) {
-      setReportMarkdown(currentStepData.report_markdown);
-    } else {
-      setReportMarkdown('');
+    if (!isShortcutsGuideOpen) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.shortcuts-guide-container') && !target.closest('button[title="단축키 가이드"]')) {
+        setIsShortcutsGuideOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isShortcutsGuideOpen]);
+
+  // 리포트 탭 전환 시 편집 모드로 자동 초기화
+  useEffect(() => {
+    if (activeTab === 'report') {
+      setReportViewMode('edit');
     }
-  }, [currentStepData]);
+  }, [activeTab]);
+
+  // --- [Data Persistence: handleSaveDraft] ---
+  // [수정됨] ref 값을 사용하여 저장 (Race Condition 방지)
+  const handleSaveDraft = useCallback(async (showToast = true) => {
+    if (!currentStepData || isSaving) return;
+
+    // ref에서 현재 에디터 값 가져오기 (상태가 아닌 실시간 값)
+    const currentEmailBody = emailBodyRef.current || editorRef.current?.innerHTML || '';
+    const currentReportMarkdown = reportMarkdownRef.current || '';
+
+    try {
+      setIsSaving(true);
+      console.log(`[InsightMixer] Saving draft for Step ${activeStep}...`);
+
+      // 1. 현재 편집된 제목들 준비
+      const currentSubjects = { ...subjectOptions };
+      Object.entries(subjectEdits).forEach(([key, text]) => {
+        const [stepNo, category, idx] = key.split('_');
+        if (parseInt(stepNo) === activeStep && currentSubjects[category]) {
+          currentSubjects[category][parseInt(idx)] = text;
+        }
+      });
+
+      // 2. DB 업데이트 (ref 값 사용)
+      const { error } = await supabase
+        .from('generated_emails')
+        .update({
+          email_body: currentEmailBody,
+          email_subjects: currentSubjects,
+          report_markdown: currentReportMarkdown,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('prospect_id', prospectId)
+        .eq('step_number', activeStep);
+
+      if (error) throw error;
+
+      // 3. [수정됨] 로컬 상태 업데이트 - 에디터 값은 업데이트하지 않음!
+      // 에디터 값을 여기서 업데이트하면 currentStepData가 변경되어 useEffect가 트리거됨
+      // 대신 email_subjects만 업데이트 (제목 편집 동기화용)
+      setAllStepsData(prev => prev.map(item =>
+        item.step_number === activeStep
+          ? {
+              ...item,
+              email_subjects: currentSubjects as any,
+              // email_body와 report_markdown은 의도적으로 제외 (Race Condition 방지)
+            }
+          : item
+      ));
+
+      if (showToast) {
+        toast.success(`Step ${activeStep} 임시 저장이 완료되었습니다.`);
+      }
+      console.log(`[InsightMixer] Step ${activeStep} saved successfully.`);
+    } catch (err) {
+      console.error('[InsightMixer] Save failed:', err);
+      if (showToast) {
+        toast.error('저장 중 오류가 발생했습니다.');
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  }, [currentStepData, isSaving, activeStep, subjectOptions, subjectEdits, prospectId]);
+
+  // --- [Auto-save Logic] ---
+  // [수정됨] 디바운스된 자동 저장 콜백 (use-debounce 사용)
+  const debouncedAutoSave = useDebouncedCallback(() => {
+    if (!loading && currentStepData) {
+      handleSaveDraft(false); // 토스트 없이 자동 저장
+    }
+  }, 3000);
+
+  // 제목 편집 시 자동 저장 트리거 (기존 동작 유지)
+  useEffect(() => {
+    if (loading || !currentStepData) return;
+    if (Object.keys(subjectEdits).length > 0) {
+      debouncedAutoSave();
+    }
+  }, [subjectEdits, loading, currentStepData, debouncedAutoSave]);
+
+  // [신규] 이메일 본문 변경 핸들러 (ref만 업데이트 - 상태 업데이트 제거로 리렌더링 방지)
+  const handleEmailBodyChange = useCallback((html: string) => {
+    emailBodyRef.current = html;
+    // setEmailBody 제거! - contentEditable에서 상태 업데이트하면 커서 리셋됨
+    debouncedAutoSave();
+  }, [debouncedAutoSave]);
+
+  // [신규] 리포트 마크다운 변경 핸들러 (ref 업데이트 + 디바운스 상태 업데이트 + 자동 저장)
+  const handleReportMarkdownChange = useCallback((value: string) => {
+    reportMarkdownRef.current = value;
+    setReportMarkdown(value); // 프리뷰 동기화용
+    debouncedAutoSave();
+  }, [debouncedAutoSave]);
 
   // ESC 키로 모달 닫기 + body 스크롤 제어
   useEffect(() => {
@@ -262,6 +421,46 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
     }
   };
 
+  // Monaco Editor 마운트 핸들러
+  const handleEditorMount = (editor: any) => {
+    monacoEditorRef.current = editor;
+    setEditorInstance(editor); // 툴바용 상태 업데이트
+
+    // 에디터 스크롤 시 프리뷰 동기화
+    editor.onDidScrollChange(() => {
+      if (!previewRef.current || reportViewMode !== 'split') return;
+
+      const scrollInfo = editor.getScrollTop();
+      const scrollHeight = editor.getScrollHeight();
+      const clientHeight = editor.getLayoutInfo().height;
+
+      if (scrollHeight <= clientHeight) return;
+
+      const scrollRatio = scrollInfo / (scrollHeight - clientHeight);
+      const preview = previewRef.current;
+      const previewScrollTop = scrollRatio * (preview.scrollHeight - preview.clientHeight);
+
+      preview.scrollTop = previewScrollTop;
+    });
+  };
+
+  // 프리뷰 스크롤 시 에디터 동기화 (양방향)
+  const handlePreviewScroll = () => {
+    if (!monacoEditorRef.current || !previewRef.current || reportViewMode !== 'split') return;
+
+    const preview = previewRef.current;
+    const editor = monacoEditorRef.current;
+
+    if (preview.scrollHeight <= preview.clientHeight) return;
+
+    const scrollRatio = preview.scrollTop / (preview.scrollHeight - preview.clientHeight);
+    const editorScrollHeight = editor.getScrollHeight();
+    const editorClientHeight = editor.getLayoutInfo().height;
+    const editorScrollTop = scrollRatio * (editorScrollHeight - editorClientHeight);
+
+    editor.setScrollTop(editorScrollTop);
+  };
+
   // --- [Subject Copy Handler] ---
   const handleCopySubject = async () => {
     if (!selectedSubjectText) {
@@ -282,6 +481,19 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
   };
 
   // --- [Email Copy Handler] ---
+  // Step별 CTA 텍스트 정의
+  const STEP_CTA_TEXTS: Record<number, string> = {
+    1: '1단계 진단 리포트 확인하기',
+    2: '2단계 전략 리포트 확인하기',
+    3: '3단계 실행 로드맵 확인하기',
+  };
+
+  // Step별 리포트 URL 생성 (Query Parameter 방식: /report/{id}?step=N)
+  const generateStepReportUrl = (step: number): string => {
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || window.location.origin;
+    return `${baseUrl}/report/${prospectId}?step=${step}`;
+  };
+
   const handleCopyEmail = async () => {
     if (!currentStepData || !editorRef.current) {
       toast.error('복사할 이메일 본문이 없습니다.');
@@ -296,12 +508,15 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
         return;
       }
 
+      // Step별 동적 CTA 텍스트
       const ctaText = currentStepData.cta_text && currentStepData.cta_text.trim()
         ? currentStepData.cta_text
-        : '리포트 확인하기';
+        : STEP_CTA_TEXTS[activeStep] || '리포트 확인하기';
 
-      const reportUrl = currentStepData.report_url ||
-        (currentStepData.id ? `${window.location.origin}/r/${currentStepData.id}` : '');
+      // Step별 동적 URL 생성 (/report/{prospectId}/{stepNumber})
+      const reportUrl = generateStepReportUrl(activeStep);
+
+      console.log(`[Email Copy] Step ${activeStep} URL:`, reportUrl);
 
       const emailHtml = generateEmailHtml({
         emailBody,
@@ -313,7 +528,9 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
 
       if (success) {
         setIsCopied(true);
-        toast.success(`이메일이 복사되었습니다! 버튼: "${ctaText}"`);
+        toast.success(`Step ${activeStep} 이메일이 복사되었습니다!`, {
+          description: `버튼: "${ctaText}"`,
+        });
         setTimeout(() => setIsCopied(false), 3000);
       } else {
         toast.error('클립보드 복사에 실패했습니다.');
@@ -467,7 +684,7 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
   if (!prospect) return <div className="h-screen bg-black text-white flex items-center justify-center font-medium">Client Not Found</div>;
 
   return (
-    <div className="h-screen w-full bg-[#050505] text-zinc-100 font-sans flex flex-col overflow-hidden selection:bg-blue-500/30">
+    <div className="h-[100dvh] w-full bg-[#050505] text-zinc-100 font-sans flex flex-col overflow-hidden selection:bg-blue-500/30">
 
       {/* Hidden File Input (Global) */}
       <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" multiple />
@@ -517,8 +734,21 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
             <Clock className="w-4 h-4" />
             <span className="text-xs font-bold">히스토리</span>
           </button>
-          <button className="h-9 px-4 rounded-lg border border-[#333] bg-transparent text-xs font-medium text-zinc-400 hover:bg-[#1C1C1E] hover:text-white transition-colors flex items-center gap-2">
-            <Save className="w-4 h-4" /> <span>임시 저장</span>
+          <button 
+            onClick={() => handleSaveDraft()}
+            disabled={isSaving}
+            className="h-9 px-4 rounded-lg border border-[#333] bg-transparent text-xs font-medium text-zinc-400 hover:bg-[#1C1C1E] hover:text-white transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSaving ? (
+              <>
+                <div className="w-3 h-3 border-2 border-zinc-500 border-t-white rounded-full animate-spin" />
+                <span>저장 중...</span>
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4" /> <span>임시 저장</span>
+              </>
+            )}
           </button>
           <button className="h-9 px-5 rounded-lg bg-white text-black text-xs font-bold hover:bg-zinc-200 transition-colors flex items-center gap-2 shadow-lg shadow-white/5">
             <Send className="w-4 h-4" /> <span>발송하기</span>
@@ -644,49 +874,99 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
               </div>
             ))}
           </div>
+
         </aside>
 
         {/* [Center Panel] Editor */}
         <main className="flex-1 bg-[#050505] flex flex-col relative min-w-0">
           
-          {/* Sticky Header Area: Navigator + Mode Switcher */}
-          <div className="sticky top-0 z-30 bg-[#050505]/80 backdrop-blur-xl border-b border-[#111] px-10 md:px-12 py-6">
-            <div className="max-w-[1400px] mx-auto space-y-6">
-              {/* Step Navigator */}
-              <div className="flex items-center justify-center gap-2">
-                {[1, 2, 3].map((step) => {
-                  const hasData = allStepsData.some(d => d.step_number === step);
-                  const isActive = activeStep === step;
-                  return (
-                    <button
-                      key={step}
-                      onClick={() => { setActiveStep(step); }}
-                      className={`h-11 px-6 rounded-full text-sm font-bold transition-all flex items-center gap-2 border ${isActive ? 'bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.15)]' : hasData ? 'bg-[#111] text-zinc-400 border-[#333] hover:border-zinc-500 hover:text-zinc-200' : 'bg-[#0A0A0A] text-zinc-800 border-[#222] cursor-not-allowed'}`}
-                    >
-                      <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] ${isActive ? 'bg-black text-white' : 'bg-[#222] text-zinc-600'}`}>{step}</span>
-                      <span>Step</span>
-                    </button>
-                  );
-                })}
-              </div>
+          {/* Sticky Header Area: Navigator + Mode Switcher + Report Toolbar */}
+          <div className="flex-shrink-0 sticky top-0 z-[100] bg-[#050505]">
+            <div className="max-w-[1400px] mx-auto px-10 md:px-12">
+              <div className="space-y-8 py-6 border-b border-white/10">
+                {/* Step Navigator */}
+                <div className="flex items-center justify-center gap-4">
+                  {[1, 2, 3].map((step) => {
+                    const hasData = allStepsData.some(d => d.step_number === step);
+                    const isActive = activeStep === step;
+                    return (
+                      <button
+                        key={step}
+                        onClick={() => { setActiveStep(step); }}
+                        className={`h-12 px-7 rounded-full text-base font-bold transition-all flex items-center gap-2.5 border ${isActive ? 'bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.15)]' : hasData ? 'bg-[#111] text-zinc-400 border-[#333] hover:border-zinc-500 hover:text-zinc-200' : 'bg-[#0A0A0A] text-zinc-800 border-[#222] cursor-not-allowed'}`}
+                      >
+                        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${isActive ? 'bg-black text-white' : 'bg-[#222] text-zinc-600'}`}>{step}</span>
+                        <span>Step</span>
+                      </button>
+                    );
+                  })}
+                </div>
 
-              {/* Mode Switcher */}
-              <div className="flex justify-center">
-                <div className="p-1.5 bg-[#111] border border-[#222] rounded-xl flex items-center shadow-inner">
-                  <button onClick={() => setActiveTab('email')} className={`flex items-center gap-2 px-8 py-3 rounded-lg text-base font-bold transition-all ${activeTab === 'email' ? 'bg-[#2C2C2E] text-white shadow-sm border border-[#333]' : 'text-zinc-500 hover:text-zinc-300'}`}>
-                    <Mail className="w-5 h-5" /> 이메일
-                  </button>
-                  <button onClick={() => setActiveTab('report')} className={`flex items-center gap-2 px-8 py-3 rounded-lg text-base font-bold transition-all ${activeTab === 'report' ? 'bg-[#2C2C2E] text-white shadow-sm border border-[#333]' : 'text-zinc-500 hover:text-zinc-300'}`}>
-                    <FileText className="w-5 h-5" /> 리포트
-                  </button>
+                {/* Mode Switcher */}
+                <div className="flex justify-center">
+                  <div className="p-1.5 bg-[#111] border border-[#222] rounded-xl flex items-center shadow-inner">
+                    <button onClick={() => setActiveTab('email')} className={`flex items-center gap-2 px-8 py-3 rounded-lg text-base font-bold transition-all ${activeTab === 'email' ? 'bg-[#2C2C2E] text-white shadow-sm border border-[#333]' : 'text-zinc-500 hover:text-zinc-300'}`}>
+                      <Mail className="w-5 h-5" /> 이메일
+                    </button>
+                    <button onClick={() => setActiveTab('report')} className={`flex items-center gap-2 px-8 py-3 rounded-lg text-base font-bold transition-all ${activeTab === 'report' ? 'bg-[#2C2C2E] text-white shadow-sm border border-[#333]' : 'text-zinc-500 hover:text-zinc-300'}`}>
+                      <FileText className="w-5 h-5" /> 리포트
+                    </button>
+                  </div>
                 </div>
               </div>
+
+              {/* 리포트 탭 툴바 (리포트 탭일 때만 표시) */}
+              {activeTab === 'report' && (
+                <div className="py-4 border-b border-white/10">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="flex gap-2 bg-zinc-100 p-1.5 rounded-lg">
+                        <button
+                          onClick={() => setReportViewMode('edit')}
+                          className={`flex items-center gap-2.5 px-5 py-2.5 rounded-md text-base font-medium transition-all ${
+                            reportViewMode === 'edit'
+                              ? 'bg-white text-blue-600 shadow-sm'
+                              : 'text-zinc-600 hover:text-zinc-900'
+                          }`}
+                        >
+                          <Pencil className="w-5 h-5" />
+                          편집
+                        </button>
+                        <button
+                          onClick={() => setReportViewMode('split')}
+                          className={`flex items-center gap-2.5 px-5 py-2.5 rounded-md text-base font-medium transition-all ${
+                            reportViewMode === 'split'
+                              ? 'bg-white text-blue-600 shadow-sm'
+                              : 'text-zinc-600 hover:text-zinc-900'
+                          }`}
+                        >
+                          <Columns className="w-5 h-5" />
+                          분할
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Preview 버튼 */}
+                    <button
+                      onClick={() => setIsReportModalOpen(true)}
+                      className="flex items-center gap-2.5 px-5 py-3 rounded-lg text-base font-semibold transition-all
+                        bg-gradient-to-b from-zinc-800 to-zinc-900 text-white border border-zinc-700
+                        hover:from-zinc-700 hover:to-zinc-800 hover:border-zinc-600
+                        shadow-lg shadow-black/20"
+                      title="몰입형 프리뷰"
+                    >
+                      <Maximize2 className="w-5 h-5" />
+                      Preview
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto no-scrollbar">
-            {/* 이메일 탭 - 제한된 너비 */}
-            {activeTab === 'email' && (
+          {/* 이메일 탭 - 제한된 너비 */}
+          {activeTab === 'email' && (
+            <div className="flex-1 overflow-y-auto no-scrollbar">
               <div className="p-10 md:px-12 md:py-8">
                 <div className="max-w-[1400px] mx-auto space-y-8">
                   <div className="space-y-10 animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -822,19 +1102,25 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
                       )}
 
                       <div
+                        key={`${prospectId}_${activeStep}`}
                         ref={editorRef}
                         className="text-lg text-zinc-800 leading-8 font-normal outline-none prose prose-slate max-w-none prose-p:my-4 prose-strong:text-black prose-strong:font-bold prose-img:rounded-xl prose-img:shadow-lg prose-img:my-6"
                         contentEditable
                         suppressContentEditableWarning
-                        dangerouslySetInnerHTML={{ __html: currentBodyHtml }}
+                        onInput={(e) => handleEmailBodyChange(e.currentTarget.innerHTML)}
+                        dangerouslySetInnerHTML={{ __html: getCleanBody() }}
                       />
                     </div>
 
                     {/* CTA 버튼 미리보기 */}
                     {currentStepData && (() => {
+                      // Step별 동적 CTA 텍스트
                       const buttonText = currentStepData.cta_text && currentStepData.cta_text.trim()
                         ? currentStepData.cta_text
-                        : '리포트 확인하기';
+                        : STEP_CTA_TEXTS[activeStep] || '리포트 확인하기';
+
+                      // Step별 동적 URL
+                      const previewUrl = generateStepReportUrl(activeStep);
 
                       return (
                         <div className="mt-10 pt-8 border-t border-zinc-200">
@@ -842,13 +1128,17 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
                             <label className="text-lg font-bold text-zinc-700 uppercase tracking-wide flex items-center gap-2.5">
                               <Sparkles className="w-5 h-5 text-blue-500" /> 이메일에 포함될 버튼 미리보기
                             </label>
+                            <p className="text-sm text-zinc-400 mt-2">
+                              Step {activeStep} 리포트로 연결됩니다
+                            </p>
                           </div>
                           <div className="flex justify-center py-12 px-8 bg-zinc-50 rounded-xl">
                             <a
-                              href={currentStepData.report_url || `${window.location.origin}/r/${currentStepData.id}`}
+                              href={previewUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-block px-8 py-4 bg-[#1A2B3C] text-white font-bold rounded transition-all hover:bg-[#243749] hover:shadow-lg"
+                              className="inline-block px-8 py-4 bg-[#1A1A1A] text-white font-semibold rounded-[10px] transition-all hover:bg-[#2A2A2A] hover:shadow-lg"
+                              style={{ letterSpacing: '-0.02em', fontWeight: 600 }}
                             >
                               {buttonText}
                             </a>
@@ -863,119 +1153,154 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
                   </div>
                 </div>
               </div>
-            )}
+            </div>
+          )}
 
-            {/* Report Tab - 전체 너비 활용 */}
-            {activeTab === 'report' && (
-              <div className="w-full px-4 lg:px-6 py-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                {/* 뷰 모드 토글 */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex gap-2 bg-zinc-100 p-1 rounded-lg">
-                      <button
-                        onClick={() => setReportViewMode('preview')}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                          reportViewMode === 'preview'
-                            ? 'bg-white text-blue-600 shadow-sm'
-                            : 'text-zinc-600 hover:text-zinc-900'
-                        }`}
-                      >
-                        <Eye className="w-4 h-4" />
-                        프리뷰
-                      </button>
-                      <button
-                        onClick={() => setReportViewMode('edit')}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                          reportViewMode === 'edit'
-                            ? 'bg-white text-blue-600 shadow-sm'
-                            : 'text-zinc-600 hover:text-zinc-900'
-                        }`}
-                      >
-                        <Pencil className="w-4 h-4" />
-                        편집
-                      </button>
-                      <button
-                        onClick={() => setReportViewMode('split')}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                          reportViewMode === 'split'
-                            ? 'bg-white text-blue-600 shadow-sm'
-                            : 'text-zinc-600 hover:text-zinc-900'
-                        }`}
-                      >
-                        <Columns className="w-4 h-4" />
-                        분할
-                      </button>
-                    </div>
-
-                    {/* 확대 보기 버튼 */}
-                    <button
-                      onClick={() => setIsReportModalOpen(true)}
-                      className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all
-                        bg-gradient-to-b from-zinc-800 to-zinc-900 text-white border border-zinc-700
-                        hover:from-zinc-700 hover:to-zinc-800 hover:border-zinc-600
-                        shadow-lg shadow-black/20"
-                      title="몰입형 프리뷰"
-                    >
-                      <Maximize2 className="w-4 h-4" />
-                      확대 보기
-                    </button>
-                  </div>
-                  <span className="text-xs text-zinc-500">
-                    마크다운 문법 지원 • 테이블, 강조, 인용구 등
-                  </span>
-                </div>
-
+          {/* Report Tab - 전체 너비 활용 */}
+          {activeTab === 'report' && (
+              <div className="flex-1 flex flex-col overflow-hidden w-full max-w-[1400px] mx-auto px-10 md:px-12 pb-10 mt-6">
                 {/* 콘텐츠 영역 */}
                 <div
-                  className={`bg-white border border-zinc-200 rounded-2xl overflow-hidden shadow-sm ${
-                    reportViewMode === 'split' ? 'grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-zinc-200' : ''
-                  }`}
-                  style={{ height: 'calc(100vh - 280px)', minHeight: '500px' }}
+                  className={`flex-1 flex overflow-hidden bg-white border border-zinc-200 rounded-2xl shadow-sm ${
+                    reportViewMode === 'split' ? 'flex-row' : ''
+                  } max-h-full`}
                 >
                   {/* 편집 모드 또는 분할 뷰 왼쪽 */}
                   {(reportViewMode === 'edit' || reportViewMode === 'split') && (
-                    <div className="flex flex-col h-full">
+                    <div className={`flex flex-col flex-1 overflow-hidden ${reportViewMode === 'split' ? 'border-r border-zinc-200' : ''}`}>
                       {reportViewMode === 'split' && (
                         <div className="px-4 py-2 bg-zinc-50 border-b border-zinc-200 shrink-0">
-                          <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
+                          <span className="text-base font-medium text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
                             <Pencil className="w-3 h-3" /> 편집
                           </span>
                         </div>
                       )}
-                      <div className="flex-1 min-h-0">
+                      <div ref={editorContainerRef} className="flex-1 min-h-0 relative h-full">
+                        {/* 플로팅 포맷 툴바 */}
+                        <FloatingToolbar
+                          editorInstance={editorInstance}
+                          containerRef={editorContainerRef}
+                        />
                         <Editor
                           height="100%"
                           language="markdown"
                           theme="light"
                           value={reportMarkdown || currentStepData?.report_markdown || '# 리포트 작성\n\n여기에 마크다운으로 리포트를 작성하세요...'}
-                          onChange={(value) => setReportMarkdown(value || '')}
+                          onChange={(value) => handleReportMarkdownChange(value || '')}
+                          onMount={handleEditorMount}
                           options={{
                             minimap: { enabled: false },
-                            fontSize: 14,
+                            fontSize: 15,
                             wordWrap: 'on',
                             lineNumbers: 'on',
                             scrollBeyondLastLine: false,
                             automaticLayout: true,
-                            padding: { top: 16, bottom: 16 },
+                            padding: { top: 24, bottom: 100 },
                             renderLineHighlight: 'line',
-                            lineHeight: 24,
+                            lineHeight: 28,
                           }}
                         />
+                        
+                        {/* 단축키 가이드 토글 버튼 */}
+                        <button
+                          onClick={() => setIsShortcutsGuideOpen(!isShortcutsGuideOpen)}
+                          onMouseEnter={() => setIsShortcutsGuideOpen(true)}
+                          className="absolute bottom-4 right-4 z-10 w-16 h-16 rounded-full bg-black/40 backdrop-blur-xl border border-white/10 flex items-center justify-center text-white/60 hover:text-white hover:bg-black/60 transition-all shadow-lg"
+                          title="단축키 가이드"
+                        >
+                          <HelpCircle className="w-8 h-8" />
+                        </button>
                       </div>
                     </div>
                   )}
 
+                  {/* 애플 스타일 플로팅 단축키 가이드 */}
+                  <AnimatePresence>
+                    {isShortcutsGuideOpen && (reportViewMode === 'edit' || reportViewMode === 'split') && (
+                      <motion.div
+                        initial={{ y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: 20, opacity: 0 }}
+                        transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+                        className="absolute bottom-16 right-4 z-20 w-80"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div 
+                          className="shortcuts-guide-container bg-black/40 backdrop-blur-xl border-t border-white/10 rounded-2xl shadow-2xl p-5"
+                          style={{ backgroundColor: 'rgba(23, 23, 23, 0.6)', backdropFilter: 'blur(20px)' }}
+                        >
+                          {/* 타이틀 */}
+                          <div className="mb-4">
+                            <span className="text-[10px] font-bold tracking-widest text-white/60 uppercase">SHORTCUTS</span>
+                          </div>
+
+                          {/* 단축키 목록 */}
+                          <div className="space-y-3">
+                            {/* 굵게 */}
+                            <div className="flex items-center justify-between gap-4">
+                              <div className="flex items-center gap-2.5">
+                                <Keyboard className="w-4 h-4 text-white/70" />
+                                <span className="text-sm text-white font-medium">굵게</span>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <kbd className="px-2.5 py-1.5 bg-neutral-800/90 border border-white/10 rounded-md text-xs font-semibold text-white shadow-sm text-center min-w-[2.5rem]">Ctrl</kbd>
+                                <span className="text-white/60 text-xs font-medium">+</span>
+                                <kbd className="px-2.5 py-1.5 bg-neutral-800/90 border border-white/10 rounded-md text-xs font-semibold text-white shadow-sm text-center min-w-[2rem]">B</kbd>
+                              </div>
+                            </div>
+
+                            {/* 기울임 */}
+                            <div className="flex items-center justify-between gap-4">
+                              <div className="flex items-center gap-2.5">
+                                <Keyboard className="w-4 h-4 text-white/70" />
+                                <span className="text-sm text-white font-medium">기울임</span>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <kbd className="px-2.5 py-1.5 bg-neutral-800/90 border border-white/10 rounded-md text-xs font-semibold text-white shadow-sm text-center min-w-[2.5rem]">Ctrl</kbd>
+                                <span className="text-white/60 text-xs font-medium">+</span>
+                                <kbd className="px-2.5 py-1.5 bg-neutral-800/90 border border-white/10 rounded-md text-xs font-semibold text-white shadow-sm text-center min-w-[2rem]">I</kbd>
+                              </div>
+                            </div>
+
+                            {/* 링크 */}
+                            <div className="flex items-center justify-between gap-4">
+                              <div className="flex items-center gap-2.5">
+                                <Keyboard className="w-4 h-4 text-white/70" />
+                                <span className="text-sm text-white font-medium">링크</span>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <kbd className="px-2.5 py-1.5 bg-neutral-800/90 border border-white/10 rounded-md text-xs font-semibold text-white shadow-sm text-center min-w-[2.5rem]">Ctrl</kbd>
+                                <span className="text-white/60 text-xs font-medium">+</span>
+                                <kbd className="px-2.5 py-1.5 bg-neutral-800/90 border border-white/10 rounded-md text-xs font-semibold text-white shadow-sm text-center min-w-[2rem]">K</kbd>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* 설명 문구 */}
+                          <p className="text-xs text-white/70 mt-4 pt-4 border-t border-white/10 leading-relaxed">
+                            텍스트 선택 시 포맷 툴바가 표시됩니다
+                          </p>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
                   {/* 프리뷰 모드 또는 분할 뷰 오른쪽 */}
                   {(reportViewMode === 'preview' || reportViewMode === 'split') && (
-                    <div className="flex flex-col h-full overflow-hidden">
+                    <div className={`flex flex-col flex-1 overflow-hidden ${reportViewMode === 'split' ? '' : ''}`}>
                       {reportViewMode === 'split' && (
                         <div className="px-4 py-2 bg-zinc-50 border-b border-zinc-200 shrink-0">
-                          <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
+                          <span className="text-base font-medium text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
                             <Eye className="w-3 h-3" /> 프리뷰
                           </span>
                         </div>
                       )}
-                      <div className="flex-1 p-6 lg:p-8 overflow-y-auto prose prose-slate max-w-none">
+                      <div
+                        ref={previewRef}
+                        onScroll={handlePreviewScroll}
+                        className="flex-1 p-6 lg:p-8 overflow-y-auto prose prose-slate max-w-none"
+                        style={{ paddingBottom: '200px' }}
+                      >
                         <ReactMarkdown
                           remarkPlugins={[remarkGfm]}
                           components={{
@@ -1033,8 +1358,7 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
                 </div>
               </div>
             )}
-          </div>
-        </main>
+          </main>
 
         {/* [Right Panel] History & Preview */}
         <aside
@@ -1050,17 +1374,17 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
           </div>
 
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
-            {/* Report Preview Button */}
+            {/* Report Preview Button - Step별 동적 URL */}
             <div className="p-5 border border-[#333] rounded-xl bg-[#1C1C1E]/30">
               <button
-                onClick={() => window.open(`/r/${prospectId}`, '_blank')}
+                onClick={() => window.open(generateStepReportUrl(activeStep), '_blank')}
                 className="w-full h-14 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-base font-bold transition-colors flex items-center justify-center gap-2 shadow-lg"
               >
                 <FileText className="w-5 h-5" />
-                리포트 미리보기
+                Step {activeStep} 리포트 미리보기
               </button>
               <p className="text-xs text-zinc-500 mt-3 text-center leading-relaxed">
-                고객이 보게 될 최종 페이지를 새 탭에서 확인
+                고객이 보게 될 Step {activeStep} 리포트를 새 탭에서 확인
               </p>
             </div>
 
