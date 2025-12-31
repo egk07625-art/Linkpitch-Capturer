@@ -9,15 +9,25 @@ import {
   Mail, FileText, Send, Save, ArrowLeft, Sparkles, ChevronDown, ChevronRight,
   Plus, X, Folder, FolderOpen, Trash2, Edit2, Check, LayoutTemplate, HelpCircle, FileOutput, ShieldCheck, Clock,
   BarChart2, TrendingUp, TrendingDown, Search, Zap, Link as LinkIcon, Target, Map, MousePointer2, CheckCircle2, Cpu, Coins, UserCheck, Navigation,
-  Eye, Pencil, Columns, Copy, Maximize2, Keyboard
+  Eye, Pencil, Columns, Copy, Maximize2, Keyboard, Type, Wand2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Editor from '@monaco-editor/react';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 import { generateEmailHtml, copyHtmlToClipboard } from '@/lib/email-html-generator';
+import {
+  convertMarkdownToEmailHtml,
+  convertHtmlToEmailHtml,
+  wrapEmailHtml,
+  copyEmailHtmlToClipboard,
+} from '@/lib/markdown-to-email-html';
 import { FloatingToolbar } from '@/components/mixer/FloatingToolbar';
+import { EmailPreviewModal } from '@/components/mixer/EmailPreviewModal';
+import { SplitViewLayout, ViewMode } from '@/components/mixer/SplitViewLayout';
+import { SubjectOptions } from '@/components/mixer/SubjectOptions';
 
 // [Design] Step별 제목 카테고리 정의
 const STEP_SUBJECT_CATEGORIES: Record<number, Record<string, { label: string, icon: any }>> = {
@@ -81,14 +91,18 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [reportMarkdown, setReportMarkdown] = useState('');
-  const [reportViewMode, setReportViewMode] = useState<'preview' | 'edit' | 'split'>('edit');
+  const [reportViewMode, setReportViewMode] = useState<'preview' | 'split'>('split');
   const [isCopied, setIsCopied] = useState(false);
   const [isSubjectCopied, setIsSubjectCopied] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [isEmailPreviewOpen, setIsEmailPreviewOpen] = useState(false);
   const [editorInstance, setEditorInstance] = useState<any>(null); // Monaco 에디터 인스턴스 (툴바용)
   const [isShortcutsGuideOpen, setIsShortcutsGuideOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [emailBody, setEmailBody] = useState('');
+  const [isMarkdownCleaned, setIsMarkdownCleaned] = useState(false); // 리포트 마크다운 볼드 최적화 토글
+  const [isEmailBoldOptimized, setIsEmailBoldOptimized] = useState(false); // 이메일 볼드 최적화 토글
+  const [emailViewMode, setEmailViewMode] = useState<ViewMode>('split'); // 이메일 편집 뷰 모드
 
   // [Advanced Asset State]
   const [folders, setFolders] = useState<FolderType[]>([
@@ -103,9 +117,13 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
   const activeFolderIdRef = useRef<string>('f1'); // 파일 추가할 타겟 폴더
-  const monacoEditorRef = useRef<any>(null); // Monaco Editor 인스턴스
-  const previewRef = useRef<HTMLDivElement>(null); // 프리뷰 스크롤 동기화용
+  const monacoEditorRef = useRef<any>(null); // Monaco Editor 인스턴스 (리포트)
+  const previewRef = useRef<HTMLDivElement>(null); // 프리뷰 스크롤 동기화용 (리포트)
   const editorContainerRef = useRef<HTMLDivElement>(null); // 에디터 컨테이너 (툴바 위치 계산용)
+
+  // 이메일 에디터 refs
+  const emailMonacoRef = useRef<any>(null); // Monaco Editor 인스턴스 (이메일)
+  const emailPreviewRef = useRef<HTMLDivElement>(null); // 이메일 프리뷰 스크롤 동기화용
 
   // [Race Condition 방지] 에디터 현재값 추적 (리렌더링 없이)
   const prevStepRef = useRef<number>(activeStep); // 이전 Step 추적
@@ -193,13 +211,76 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
   const getCleanBody = () => {
     // n8n에서 생성한 통합 필드(email_body)를 최우선으로 사용
     const rawBody = currentStepData?.email_body || currentStepData?.email_body_solopreneur || currentStepData?.email_body_corporate;
-    
+
     if (!rawBody) {
       if (loading) return "데이터 로딩 중...";
       return "생성된 이메일 본문 데이터가 없습니다. n8n 워크플로우를 확인해주세요.";
     }
 
     return rawBody.replace(/\n\n/g, '<br><br>').replace(/\n/g, '<br>');
+  };
+
+  // ===== 마크다운 볼드 → HTML 변환 함수 (프리뷰용) =====
+
+  /**
+   * 마크다운 볼드(**) → HTML <strong> 태그로 강제 변환
+   * 변환 후 공백 복원 방식 - 단어와 태그 사이 공백 명시적 추가
+   */
+  const convertBoldToHtml = (text: string): string => {
+    if (!text) return '';
+
+    const originalAsterisks = (text.match(/\*\*/g) || []).length;
+    let result = text;
+
+    // ===== 1단계: ** 내부 공백 정리 =====
+    // ** 텍스트 ** → **텍스트**
+    result = result.replace(/\*\*\s+([^*]+?)\s+\*\*/g, '**$1**');
+    result = result.replace(/\*\*\s+([^*]+?)\*\*/g, '**$1**');
+    result = result.replace(/\*\*([^*]+?)\s+\*\*/g, '**$1**');
+
+    // ===== 2단계: 볼드 → <strong> 변환 =====
+    result = result.replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>');
+
+    // ===== 3단계: 특수 컨텍스트 추가 처리 =====
+    result = result.replace(/\[\*\*([^\]]+?)\*\*\]/g, '[<strong>$1</strong>]');
+    result = result.replace(/\(\*\*([^)]+?)\*\*\)/g, '(<strong>$1</strong>)');
+    result = result.replace(/\|\*\*([^|]+?)\*\*\|/g, '|<strong>$1</strong>|');
+    result = result.replace(/\|\*\*([^|]+?)\*\*/g, '|<strong>$1</strong>');
+    result = result.replace(/\*\*([^|]+?)\*\*\|/g, '<strong>$1</strong>|');
+
+    // ===== 4단계: 남은 고아 별표 제거 =====
+    result = result.replace(/\*\*/g, '');
+
+    // ===== 5단계: 공백 복원 (핵심!) =====
+    // 한글/영문/숫자/닫는괄호 바로 뒤에 <strong>이 붙어있으면 공백 추가
+    result = result.replace(/([가-힣a-zA-Z0-9\)\]\%])<strong>/g, '$1 <strong>');
+    // </strong> 바로 뒤에 한글/영문/숫자/여는괄호가 붙어있으면 공백 추가
+    result = result.replace(/<\/strong>([가-힣a-zA-Z0-9\(\[])/g, '</strong> $1');
+
+    // 검증 로그
+    const strongTags = (result.match(/<strong>/g) || []).length;
+    const sample = result.match(/.{0,8}<strong>.+?<\/strong>.{0,8}/)?.[0];
+    console.log('[볼드 최적화 결과]', {
+      변환전_별표쌍: originalAsterisks / 2,
+      생성된_strong_태그: strongTags,
+      샘플: sample || '없음',
+    });
+
+    return result;
+  };
+
+  // 리포트 프리뷰용 콘텐츠 (볼드 → HTML 변환 적용)
+  const getPreviewContent = () => {
+    const content = reportMarkdown || currentStepData?.report_markdown || '# 리포트 작성\n\n여기에 마크다운으로 리포트를 작성하세요...';
+    return isMarkdownCleaned ? convertBoldToHtml(content) : content;
+  };
+
+  // 이메일 프리뷰용 콘텐츠 (Monaco 에디터 내용 사용)
+  const getEmailPreviewContent = () => {
+    // Monaco 에디터의 현재 값 사용
+    const content = emailBodyRef.current || emailBody || getCleanBody();
+    // EmailPreviewModal에서 마크다운 변환을 처리하므로 원본 반환
+    return content;
   };
 
   // [수정됨] Step 전환 시에만 에디터 값 초기화 (Race Condition 방지)
@@ -286,10 +367,10 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isShortcutsGuideOpen]);
 
-  // 리포트 탭 전환 시 편집 모드로 자동 초기화
+  // 리포트 탭 전환 시 분할 모드로 자동 초기화
   useEffect(() => {
     if (activeTab === 'report') {
-      setReportViewMode('edit');
+      setReportViewMode('split');
     }
   }, [activeTab]);
 
@@ -461,6 +542,81 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
     editor.setScrollTop(editorScrollTop);
   };
 
+  // ===== 이메일 에디터 핸들러 =====
+
+  // 이메일 Monaco Editor 마운트 핸들러
+  const handleEmailEditorMount = (editor: any) => {
+    emailMonacoRef.current = editor;
+
+    // 에디터 스크롤 시 프리뷰 동기화
+    editor.onDidScrollChange(() => {
+      if (!emailPreviewRef.current || emailViewMode !== 'split') return;
+
+      const scrollInfo = editor.getScrollTop();
+      const scrollHeight = editor.getScrollHeight();
+      const clientHeight = editor.getLayoutInfo().height;
+
+      if (scrollHeight <= clientHeight) return;
+
+      const scrollRatio = scrollInfo / (scrollHeight - clientHeight);
+      const preview = emailPreviewRef.current;
+      const previewScrollTop = scrollRatio * (preview.scrollHeight - preview.clientHeight);
+
+      preview.scrollTop = previewScrollTop;
+    });
+  };
+
+  // 이메일 프리뷰 스크롤 시 에디터 동기화
+  const handleEmailPreviewScroll = () => {
+    if (!emailMonacoRef.current || !emailPreviewRef.current || emailViewMode !== 'split') return;
+
+    const preview = emailPreviewRef.current;
+    const editor = emailMonacoRef.current;
+
+    if (preview.scrollHeight <= preview.clientHeight) return;
+
+    const scrollRatio = preview.scrollTop / (preview.scrollHeight - preview.clientHeight);
+    const editorScrollHeight = editor.getScrollHeight();
+    const editorClientHeight = editor.getLayoutInfo().height;
+    const editorScrollTop = scrollRatio * (editorScrollHeight - editorClientHeight);
+
+    editor.setScrollTop(editorScrollTop);
+  };
+
+  // 이메일 본문 변경 핸들러 (Monaco Editor용)
+  const handleEmailMonacoChange = useCallback((value: string | undefined) => {
+    const newValue = value || '';
+    emailBodyRef.current = newValue;
+    setEmailBody(newValue);
+    debouncedAutoSave();
+  }, [debouncedAutoSave]);
+
+  // 이메일 프리뷰용 HTML 콘텐츠 생성
+  const getEmailPreviewHtml = useCallback(() => {
+    const content = emailBody || getCleanBody();
+    if (!content) return '';
+
+    // HTML 태그를 줄바꿈으로 복원
+    let cleanedContent = content
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/p>/gi, '\n\n')
+      .replace(/<p[^>]*>/gi, '')
+      .replace(/<\/div>/gi, '\n')
+      .replace(/<div[^>]*>/gi, '')
+      .replace(/<\/span>/gi, '')
+      .replace(/<span[^>]*>/gi, '');
+
+    // HTML 엔티티 디코딩
+    cleanedContent = cleanedContent
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&gt;/gi, '>')
+      .replace(/&lt;/gi, '<')
+      .replace(/&amp;/gi, '&');
+
+    // 마크다운 → 이메일 HTML 변환
+    return convertMarkdownToEmailHtml(cleanedContent);
+  }, [emailBody]);
+
   // --- [Subject Copy Handler] ---
   const handleCopySubject = async () => {
     if (!selectedSubjectText) {
@@ -495,18 +651,17 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
   };
 
   const handleCopyEmail = async () => {
-    if (!currentStepData || !editorRef.current) {
+    // Monaco 에디터 또는 상태에서 본문 가져오기
+    const rawEmailBody = emailBodyRef.current || emailBody || getCleanBody();
+
+    if (!currentStepData || !rawEmailBody.trim()) {
       toast.error('복사할 이메일 본문이 없습니다.');
       return;
     }
 
     try {
-      const emailBody = editorRef.current.innerText || '';
-
-      if (!emailBody.trim()) {
-        toast.error('이메일 본문이 비어있습니다.');
-        return;
-      }
+      // 이메일 프리뷰와 동일한 변환 적용
+      const styledBodyHtml = getEmailPreviewHtml();
 
       // Step별 동적 CTA 텍스트
       const ctaText = currentStepData.cta_text && currentStepData.cta_text.trim()
@@ -516,20 +671,19 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
       // Step별 동적 URL 생성 (/report/{prospectId}/{stepNumber})
       const reportUrl = generateStepReportUrl(activeStep);
 
-      console.log(`[Email Copy] Step ${activeStep} URL:`, reportUrl);
+      console.log(`[Email Copy] Step ${activeStep} URL:`, reportUrl, '볼드 최적화:', isEmailBoldOptimized);
 
-      const emailHtml = generateEmailHtml({
-        emailBody,
-        ctaText,
-        reportUrl,
-      });
+      // 최종 이메일 HTML 생성 (본문 + CTA 버튼)
+      const finalEmailHtml = wrapEmailHtml(styledBodyHtml, ctaText, reportUrl);
 
-      const success = await copyHtmlToClipboard(emailHtml);
+      const success = await copyEmailHtmlToClipboard(finalEmailHtml);
 
       if (success) {
         setIsCopied(true);
         toast.success(`Step ${activeStep} 이메일이 복사되었습니다!`, {
-          description: `버튼: "${ctaText}"`,
+          description: isEmailBoldOptimized
+            ? '볼드 최적화가 적용된 버전입니다'
+            : `버튼: "${ctaText}"`,
         });
         setTimeout(() => setIsCopied(false), 3000);
       } else {
@@ -922,17 +1076,6 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
                     <div className="flex items-center gap-3">
                       <div className="flex gap-2 bg-zinc-100 p-1.5 rounded-lg">
                         <button
-                          onClick={() => setReportViewMode('edit')}
-                          className={`flex items-center gap-2.5 px-5 py-2.5 rounded-md text-base font-medium transition-all ${
-                            reportViewMode === 'edit'
-                              ? 'bg-white text-blue-600 shadow-sm'
-                              : 'text-zinc-600 hover:text-zinc-900'
-                          }`}
-                        >
-                          <Pencil className="w-5 h-5" />
-                          편집
-                        </button>
-                        <button
                           onClick={() => setReportViewMode('split')}
                           className={`flex items-center gap-2.5 px-5 py-2.5 rounded-md text-base font-medium transition-all ${
                             reportViewMode === 'split'
@@ -941,23 +1084,49 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
                           }`}
                         >
                           <Columns className="w-5 h-5" />
-                          분할
+                          편집
                         </button>
                       </div>
                     </div>
 
-                    {/* Preview 버튼 */}
-                    <button
-                      onClick={() => setIsReportModalOpen(true)}
-                      className="flex items-center gap-2.5 px-5 py-3 rounded-lg text-base font-semibold transition-all
-                        bg-gradient-to-b from-zinc-800 to-zinc-900 text-white border border-zinc-700
-                        hover:from-zinc-700 hover:to-zinc-800 hover:border-zinc-600
-                        shadow-lg shadow-black/20"
-                      title="몰입형 프리뷰"
-                    >
-                      <Maximize2 className="w-5 h-5" />
-                      Preview
-                    </button>
+                    {/* 오른쪽 버튼 그룹 */}
+                    <div className="flex items-center gap-3">
+                      {/* 볼드 최적화 토글 버튼 */}
+                      <button
+                        onClick={() => setIsMarkdownCleaned(!isMarkdownCleaned)}
+                        className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all border ${
+                          isMarkdownCleaned
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-sm'
+                            : 'bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50 hover:border-zinc-300'
+                        }`}
+                        title={isMarkdownCleaned ? '원본 마크다운 보기' : '가독성 최적화: 볼드 문법 자동 교정 (** 공백 문제 등)'}
+                      >
+                        {isMarkdownCleaned ? (
+                          <>
+                            <Type className="w-4 h-4" />
+                            <span>원본 보기</span>
+                          </>
+                        ) : (
+                          <>
+                            <Wand2 className="w-4 h-4" />
+                            <span>가독성 최적화</span>
+                          </>
+                        )}
+                      </button>
+
+                      {/* Preview 버튼 */}
+                      <button
+                        onClick={() => setIsReportModalOpen(true)}
+                        className="flex items-center gap-2.5 px-5 py-3 rounded-lg text-base font-semibold transition-all
+                          bg-gradient-to-b from-zinc-800 to-zinc-900 text-white border border-zinc-700
+                          hover:from-zinc-700 hover:to-zinc-800 hover:border-zinc-600
+                          shadow-lg shadow-black/20"
+                        title="몰입형 프리뷰"
+                      >
+                        <Maximize2 className="w-5 h-5" />
+                        Preview
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -971,184 +1140,162 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
                 <div className="max-w-[1400px] mx-auto space-y-8">
                   <div className="space-y-10 animate-in fade-in slide-in-from-bottom-2 duration-300">
 
-                  {/* Subject Picker */}
-                  <div className="space-y-5">
-                    <div className="flex justify-between items-center">
-                      <label className="flex items-center gap-2 text-base font-bold text-zinc-500 uppercase tracking-widest">
-                        <Sparkles className="w-5 h-5 text-blue-500" /> Subject Options
-                      </label>
+                  {/* Subject Picker - 다크모드 카드 시스템 */}
+                  <SubjectOptions
+                    categories={STEP_SUBJECT_CATEGORIES[activeStep] || {}}
+                    subjectsByCategory={subjectOptions}
+                    activeCategory={activeSubjectCategory}
+                    onCategoryChange={setActiveSubjectCategory}
+                    selectedSubject={selectedSubjectText}
+                    onSubjectSelect={setSelectedSubjectText}
+                    getDisplaySubject={getDisplaySubject}
+                    onSubjectEdit={handleSubjectEdit}
+                    isCopied={isSubjectCopied}
+                    onCopy={handleCopySubject}
+                  />
 
-                      {/* Subject Copy Button */}
-                      <button
-                        onClick={handleCopySubject}
-                        disabled={!selectedSubjectText}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all border ${
-                          isSubjectCopied
-                            ? 'bg-green-500 text-white border-green-600'
-                            : selectedSubjectText
-                            ? 'bg-[#1A2B3C] text-white border-[#34495e] hover:bg-[#243749]'
-                            : 'bg-[#1A2B3C] text-white border-[#34495e] opacity-50 cursor-not-allowed'
-                        }`}
-                      >
-                        {isSubjectCopied ? (
-                          <>
-                            <CheckCircle2 className="w-4 h-4" />
-                            복사됨!
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="w-4 h-4" />
-                            제목 복사
-                          </>
-                        )}
-                      </button>
-                    </div>
-                    <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
-                      {STEP_SUBJECT_CATEGORIES[activeStep] && Object.keys(STEP_SUBJECT_CATEGORIES[activeStep]).map((key) => {
-                        const category = STEP_SUBJECT_CATEGORIES[activeStep][key];
-                        const Icon = category.icon;
-                        return (
-                          <button 
-                            key={key} 
-                            onClick={() => setActiveSubjectCategory(key)} 
-                            className={`flex items-center gap-2.5 px-5 py-3 rounded-xl text-base font-bold transition-all border whitespace-nowrap
-                              ${activeSubjectCategory === key 
-                                ? 'bg-[#1A2B3C] text-white border-[#34495e] shadow-[0_0_15px_rgba(26,43,60,0.4)] scale-[1.02]' 
-                                : 'bg-[#1e1e1e] text-[#888888] border-[#333333] hover:bg-[#252525] hover:border-[#444444] hover:text-[#ffffff]'
-                              }`}
+                  {/* Body Editor - 분할 뷰 */}
+                  <div className="h-[650px] border border-zinc-200 rounded-2xl overflow-hidden shadow-sm bg-white">
+                    <SplitViewLayout
+                      title="BODY CONTENT"
+                      icon={<FileText className="w-4 h-4 text-blue-500" />}
+                      viewMode={emailViewMode}
+                      onViewModeChange={setEmailViewMode}
+                      previewScrollRef={emailPreviewRef}
+                      onPreviewScroll={handleEmailPreviewScroll}
+
+                      // 툴바 버튼들
+                      toolbarButtons={
+                        <>
+                          {/* 볼드 최적화 버튼 */}
+                          <button
+                            onClick={() => setIsEmailBoldOptimized(!isEmailBoldOptimized)}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
+                              isEmailBoldOptimized
+                                ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30'
+                                : 'bg-white text-zinc-500 border-zinc-200 hover:bg-zinc-50 hover:text-zinc-700'
+                            }`}
+                            title={isEmailBoldOptimized ? '원본 보기' : '가독성 최적화: 볼드 문법(**) → 굵은 글씨로 변환'}
                           >
-                            <Icon className={`w-5 h-5 ${activeSubjectCategory === key ? 'text-[#4da3ff] opacity-100' : 'opacity-70'}`} />{category.label}
+                            {isEmailBoldOptimized ? (
+                              <>
+                                <Type className="w-3.5 h-3.5" />
+                                원본
+                              </>
+                            ) : (
+                              <>
+                                <Wand2 className="w-3.5 h-3.5" />
+                                가독성 최적화
+                              </>
+                            )}
                           </button>
-                        )
-                      })}
-                    </div>
-                    <div className="grid grid-cols-1 gap-3">
-                      {currentCategorySubjects.length > 0 ? (
-                        currentCategorySubjects.map((originalSubject, idx) => {
-                          const displaySubject = getDisplaySubject(idx, originalSubject);
-                          const isSelected = selectedSubjectText === displaySubject;
 
-                          return (
-                            <div 
-                              key={idx} 
-                              onClick={() => setSelectedSubjectText(displaySubject)} 
-                              className={`group px-6 py-4 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${isSelected ? 'bg-white border-blue-500 ring-1 ring-blue-500/10' : 'bg-white border-zinc-200 hover:border-zinc-300 shadow-sm'}`}
-                            >
-                              <div className="flex-1 mr-4">
-                                <div
-                                  contentEditable
-                                  suppressContentEditableWarning
-                                  className="text-base font-semibold outline-none text-zinc-800"
-                                  onInput={(e) => handleSubjectEdit(idx, e.currentTarget.innerText)}
-                                  onClick={(e) => e.stopPropagation()} 
-                                >
-                                  {displaySubject}
+                          {/* 럭셔리 미리보기 버튼 */}
+                          <button
+                            onClick={() => setIsEmailPreviewOpen(true)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border
+                                       bg-white text-zinc-500 border-zinc-200 hover:bg-zinc-50 hover:text-zinc-700"
+                          >
+                            <Maximize2 className="w-3.5 h-3.5" />
+                            전체화면
+                          </button>
+
+                          {/* 복사 버튼 */}
+                          <button
+                            onClick={handleCopyEmail}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
+                              isCopied
+                                ? 'bg-green-500 text-white border-green-600'
+                                : 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
+                            }`}
+                          >
+                            {isCopied ? (
+                              <>
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                복사됨!
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-3.5 h-3.5" />
+                                이메일 복사
+                              </>
+                            )}
+                          </button>
+                        </>
+                      }
+
+                      // 에디터 콘텐츠 (Monaco Editor)
+                      editorContent={
+                        <Editor
+                          height="100%"
+                          language="markdown"
+                          theme="light"
+                          value={emailBody || (() => {
+                            // 초기값: getCleanBody()에서 HTML을 마크다운 형태로 정리
+                            const raw = getCleanBody();
+                            return raw
+                              .replace(/<br\s*\/?>/gi, '\n')
+                              .replace(/<\/p>/gi, '\n\n')
+                              .replace(/<p[^>]*>/gi, '')
+                              .replace(/<[^>]+>/gi, '');
+                          })()}
+                          onChange={handleEmailMonacoChange}
+                          onMount={handleEmailEditorMount}
+                          options={{
+                            minimap: { enabled: false },
+                            fontSize: 15,
+                            wordWrap: 'on',
+                            lineNumbers: 'on',
+                            scrollBeyondLastLine: false,
+                            automaticLayout: true,
+                            padding: { top: 24, bottom: 100 },
+                            renderLineHighlight: 'line',
+                            lineHeight: 28,
+                          }}
+                        />
+                      }
+
+                      // 프리뷰 콘텐츠
+                      previewContent={
+                        <div className="p-8" style={{ paddingBottom: '120px' }}>
+                          {/* 이메일 본문 프리뷰 */}
+                          <div
+                            className="prose prose-slate max-w-none"
+                            style={{ fontSize: '15px', lineHeight: '1.7' }}
+                            dangerouslySetInnerHTML={{ __html: getEmailPreviewHtml() }}
+                          />
+
+                          {/* CTA 버튼 미리보기 */}
+                          {currentStepData && (() => {
+                            const buttonText = currentStepData.cta_text && currentStepData.cta_text.trim()
+                              ? currentStepData.cta_text
+                              : STEP_CTA_TEXTS[activeStep] || '리포트 확인하기';
+                            const previewUrl = generateStepReportUrl(activeStep);
+
+                            return (
+                              <div className="mt-10 pt-8 border-t border-zinc-200">
+                                <div className="mb-4">
+                                  <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                                    <Sparkles className="w-3.5 h-3.5 text-blue-500" /> CTA 버튼
+                                  </span>
+                                </div>
+                                <div className="flex justify-center py-8 px-6 bg-zinc-50 rounded-xl">
+                                  <a
+                                    href={previewUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-block px-7 py-3.5 bg-[#1A1A1A] text-white font-semibold rounded-lg transition-all hover:bg-[#2A2A2A] hover:shadow-lg"
+                                    style={{ letterSpacing: '-0.02em', fontWeight: 600, fontSize: '15px' }}
+                                  >
+                                    {buttonText}
+                                  </a>
                                 </div>
                               </div>
-                              {isSelected && <Check className="w-5 h-5 text-blue-500 shrink-0" />}
-                            </div>
-                          );
-                        })
-                      ) : <div className="p-6 rounded-xl border border-zinc-200 bg-zinc-50 text-zinc-500 text-sm text-center">제목 없음</div>}
-                    </div>
-                  </div>
-
-                  {/* Body Editor (Drop Target) */}
-                  <div className="space-y-5">
-                      <div className="flex justify-between items-center">
-                        <label className="text-base font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-2">
-                          <FileText className="w-5 h-5 text-blue-500" /> Body Content
-                        </label>
-
-                        {/* Copy Button */}
-                        <button
-                          onClick={handleCopyEmail}
-                          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all border ${
-                            isCopied
-                              ? 'bg-green-500 text-white border-green-600'
-                              : 'bg-[#1A2B3C] text-white border-[#34495e] hover:bg-[#243749]'
-                          }`}
-                        >
-                          {isCopied ? (
-                            <>
-                              <CheckCircle2 className="w-4 h-4" />
-                              복사됨!
-                            </>
-                          ) : (
-                            <>
-                              <Copy className="w-4 h-4" />
-                              이메일 복사
-                            </>
-                          )}
-                        </button>
-                      </div>
-
-                    <div
-                      className={`
-                        min-h-[500px] bg-white border rounded-2xl p-10 transition-all shadow-inner relative
-                        ${draggedAsset ? 'border-blue-500/50 bg-blue-500/5 ring-1 ring-blue-500/20' : 'border-[#DDD] focus-within:border-zinc-400'}
-                      `}
-                      onDragOver={handleEditorDragOver}
-                      onDrop={handleEditorDrop}
-                      onClick={handleEditorClick}
-                    >
-                      {/* Drag Overlay Hint */}
-                      {draggedAsset && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-2xl pointer-events-none z-10">
-                          <div className="bg-blue-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow-xl flex items-center gap-2">
-                            <Plus className="w-4 h-4" /> 여기에 놓기
-                          </div>
+                            );
+                          })()}
                         </div>
-                      )}
-
-                      <div
-                        key={`${prospectId}_${activeStep}`}
-                        ref={editorRef}
-                        className="text-lg text-zinc-800 leading-8 font-normal outline-none prose prose-slate max-w-none prose-p:my-4 prose-strong:text-black prose-strong:font-bold prose-img:rounded-xl prose-img:shadow-lg prose-img:my-6"
-                        contentEditable
-                        suppressContentEditableWarning
-                        onInput={(e) => handleEmailBodyChange(e.currentTarget.innerHTML)}
-                        dangerouslySetInnerHTML={{ __html: getCleanBody() }}
-                      />
-                    </div>
-
-                    {/* CTA 버튼 미리보기 */}
-                    {currentStepData && (() => {
-                      // Step별 동적 CTA 텍스트
-                      const buttonText = currentStepData.cta_text && currentStepData.cta_text.trim()
-                        ? currentStepData.cta_text
-                        : STEP_CTA_TEXTS[activeStep] || '리포트 확인하기';
-
-                      // Step별 동적 URL
-                      const previewUrl = generateStepReportUrl(activeStep);
-
-                      return (
-                        <div className="mt-10 pt-8 border-t border-zinc-200">
-                          <div className="mb-6">
-                            <label className="text-lg font-bold text-zinc-700 uppercase tracking-wide flex items-center gap-2.5">
-                              <Sparkles className="w-5 h-5 text-blue-500" /> 이메일에 포함될 버튼 미리보기
-                            </label>
-                            <p className="text-sm text-zinc-400 mt-2">
-                              Step {activeStep} 리포트로 연결됩니다
-                            </p>
-                          </div>
-                          <div className="flex justify-center py-12 px-8 bg-zinc-50 rounded-xl">
-                            <a
-                              href={previewUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-block px-8 py-4 bg-[#1A1A1A] text-white font-semibold rounded-[10px] transition-all hover:bg-[#2A2A2A] hover:shadow-lg"
-                              style={{ letterSpacing: '-0.02em', fontWeight: 600 }}
-                            >
-                              {buttonText}
-                            </a>
-                          </div>
-                          <p className="text-sm text-zinc-400 text-center mt-5 leading-relaxed">
-                            '이메일 복사' 버튼을 클릭하면 본문과 함께 이 버튼이 HTML 형식으로 복사됩니다
-                          </p>
-                        </div>
-                      );
-                    })()}
+                      }
+                    />
                   </div>
                   </div>
                 </div>
@@ -1165,8 +1312,8 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
                     reportViewMode === 'split' ? 'flex-row' : ''
                   } max-h-full`}
                 >
-                  {/* 편집 모드 또는 분할 뷰 왼쪽 */}
-                  {(reportViewMode === 'edit' || reportViewMode === 'split') && (
+                  {/* 분할 뷰 왼쪽 (에디터) */}
+                  {reportViewMode === 'split' && (
                     <div className={`flex flex-col flex-1 overflow-hidden ${reportViewMode === 'split' ? 'border-r border-zinc-200' : ''}`}>
                       {reportViewMode === 'split' && (
                         <div className="px-4 py-2 bg-zinc-50 border-b border-zinc-200 shrink-0">
@@ -1201,29 +1348,21 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
                           }}
                         />
                         
-                        {/* 단축키 가이드 토글 버튼 */}
-                        <button
-                          onClick={() => setIsShortcutsGuideOpen(!isShortcutsGuideOpen)}
-                          onMouseEnter={() => setIsShortcutsGuideOpen(true)}
-                          className="absolute bottom-4 right-4 z-10 w-16 h-16 rounded-full bg-black/40 backdrop-blur-xl border border-white/10 flex items-center justify-center text-white/60 hover:text-white hover:bg-black/60 transition-all shadow-lg"
-                          title="단축키 가이드"
-                        >
-                          <HelpCircle className="w-8 h-8" />
-                        </button>
                       </div>
                     </div>
                   )}
 
                   {/* 애플 스타일 플로팅 단축키 가이드 */}
                   <AnimatePresence>
-                    {isShortcutsGuideOpen && (reportViewMode === 'edit' || reportViewMode === 'split') && (
+                    {isShortcutsGuideOpen && reportViewMode === 'split' && (
                       <motion.div
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         exit={{ y: 20, opacity: 0 }}
                         transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-                        className="absolute bottom-16 right-4 z-20 w-80"
+                        className="absolute bottom-16 right-2 z-20 w-80"
                         onClick={(e) => e.stopPropagation()}
+                        onMouseLeave={() => setIsShortcutsGuideOpen(false)}
                       >
                         <div 
                           className="shortcuts-guide-container bg-black/40 backdrop-blur-xl border-t border-white/10 rounded-2xl shadow-2xl p-5"
@@ -1287,7 +1426,7 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
 
                   {/* 프리뷰 모드 또는 분할 뷰 오른쪽 */}
                   {(reportViewMode === 'preview' || reportViewMode === 'split') && (
-                    <div className={`flex flex-col flex-1 overflow-hidden ${reportViewMode === 'split' ? '' : ''}`}>
+                    <div className={`flex flex-col flex-1 overflow-hidden relative ${reportViewMode === 'split' ? '' : ''}`}>
                       {reportViewMode === 'split' && (
                         <div className="px-4 py-2 bg-zinc-50 border-b border-zinc-200 shrink-0">
                           <span className="text-base font-medium text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
@@ -1298,11 +1437,12 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
                       <div
                         ref={previewRef}
                         onScroll={handlePreviewScroll}
-                        className="flex-1 p-6 lg:p-8 overflow-y-auto prose prose-slate max-w-none"
+                        className="flex-1 p-6 lg:p-8 overflow-y-auto prose prose-slate max-w-none relative"
                         style={{ paddingBottom: '200px' }}
                       >
                         <ReactMarkdown
                           remarkPlugins={[remarkGfm]}
+                          rehypePlugins={[rehypeRaw]}
                           components={{
                             h1: ({ children }) => (
                               <h1 className="text-2xl font-bold text-zinc-900 border-b border-zinc-200 pb-3 mb-6 mt-0">{children}</h1>
@@ -1350,9 +1490,20 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
                             hr: () => <hr className="my-8 border-zinc-200" />,
                           }}
                         >
-                          {reportMarkdown || currentStepData?.report_markdown || '# 리포트 작성\n\n여기에 마크다운으로 리포트를 작성하세요...'}
+                          {getPreviewContent()}
                         </ReactMarkdown>
                       </div>
+                      {/* 단축키 가이드 토글 버튼 - 프리뷰 우측 하단 (스크롤 영역 밖, 고정 위치) */}
+                      {reportViewMode === 'split' && (
+                        <button
+                          onClick={() => setIsShortcutsGuideOpen(!isShortcutsGuideOpen)}
+                          onMouseEnter={() => setIsShortcutsGuideOpen(true)}
+                          className="absolute bottom-2 right-2 z-10 w-16 h-16 rounded-full bg-black/40 backdrop-blur-xl border border-white/10 flex items-center justify-center text-white/60 hover:text-white hover:bg-black/60 transition-all shadow-lg"
+                          title="단축키 가이드"
+                        >
+                          <HelpCircle className="w-8 h-8" />
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1460,18 +1611,8 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
               <div className="flex-1 overflow-y-auto px-20 py-16">
                 {/* 리포트 콘텐츠 렌더링 */}
                 {(() => {
-                  // 데이터 우선순위: report_html_editable > report_markdown
-                  const rawContent = currentStepData?.report_html_editable || currentStepData?.report_markdown || '';
-
-                  // [object Object] 방지 - 객체/배열인 경우 안전하게 처리
-                  let safeContent = '';
-                  if (typeof rawContent === 'string') {
-                    safeContent = rawContent;
-                  } else if (rawContent && typeof rawContent === 'object') {
-                    // 배열이나 객체인 경우 JSON 문자열로 변환하지 않고 빈 문자열 처리
-                    console.warn('[ReportModal] rawContent is not a string:', rawContent);
-                    safeContent = '';
-                  }
+                  // 분할 프리뷰와 동일한 콘텐츠 사용 (볼드 최적화 포함)
+                  const safeContent = getPreviewContent();
 
                   // CTA 패턴 감지 함수
                   const isCTAContent = (text: string): boolean => {
@@ -1524,6 +1665,7 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
                       <article className="luxury-report-prose max-w-none">
                         <ReactMarkdown
                           remarkPlugins={[remarkGfm]}
+                          rehypePlugins={[rehypeRaw]}
                           components={{
                             h1: ({ children }) => (
                               <h1
@@ -1673,6 +1815,20 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ============================================
+          이메일 미리보기 모달
+          ============================================ */}
+      <EmailPreviewModal
+        isOpen={isEmailPreviewOpen}
+        onClose={() => setIsEmailPreviewOpen(false)}
+        recipient={prospect?.store_name || prospect?.name || '고객'}
+        subject={selectedSubjectText}
+        body={getEmailPreviewContent()}
+        ctaUrl={generateStepReportUrl(activeStep)}
+        ctaText={currentStepData?.cta_text?.trim() || STEP_CTA_TEXTS[activeStep] || '리포트 확인하기'}
+        onCopyEmail={handleCopyEmail}
+      />
     </div>
   )
 }
