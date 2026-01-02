@@ -1,23 +1,35 @@
 'use client';
 
 import { ReactNode } from 'react';
-import { Eye, Columns } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { SegmentedControl } from './SegmentedControl';
 
-// 공통 버튼 스타일 토큰 (화이트톤)
+// 공통 버튼 스타일 토큰 (SegmentedControl과 동일한 디자인)
 export const toolbarButtonStyles = {
-  // 기본 버튼
-  base: 'h-8 px-3 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 active:scale-[0.97]',
-  // 비활성 상태
-  inactive: 'bg-white text-zinc-500 border border-zinc-200 hover:bg-zinc-50 hover:text-zinc-700',
-  // 활성 상태 (강조)
-  active: 'bg-zinc-900 text-white border border-zinc-900 shadow-sm',
-  // 활성 컬러 (화이트톤 기반)
+  // 기본 버튼 (SegmentedControl과 동일)
+  base: 'relative px-5 py-1.5 rounded-lg text-sm font-medium tracking-tight transition-all duration-200 active:scale-[0.98] flex items-center gap-1.5',
+  // 비활성 상태 (SegmentedControl과 동일)
+  inactive: 'text-zinc-500 hover:text-zinc-700 hover:bg-zinc-50',
+  // 활성 상태 (SegmentedControl과 동일한 스타일)
+  active: 'text-zinc-900',
+  // 활성 컬러 (SegmentedControl과 동일)
   activeColor: {
-    default: 'bg-zinc-900 text-white border border-zinc-900 shadow-sm',
-    emerald: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30',
-    blue: 'bg-zinc-800 text-white border-zinc-800 hover:bg-zinc-700',
+    default: {
+      bg: 'bg-zinc-100',
+      text: 'text-zinc-900',
+      border: 'border-zinc-200'
+    },
+    emerald: {
+      bg: 'bg-emerald-50',
+      text: 'text-emerald-700',
+      border: 'border-emerald-200'
+    },
+    blue: {
+      bg: 'bg-blue-50',
+      text: 'text-blue-700',
+      border: 'border-blue-200'
+    },
   },
 };
 
@@ -67,7 +79,7 @@ export function EditorToolbar({
   return (
     <div className={cn(
       'flex items-center justify-between w-full px-4 py-2.5',
-      'border-b border-zinc-200 bg-zinc-50 shrink-0',
+      'border-b border-zinc-200 bg-gray-50 shrink-0',
       className
     )}>
       {/* 왼쪽 그룹: 모드 토글 + 뷰 모드 */}
@@ -97,42 +109,20 @@ export function EditorToolbar({
           <div className="w-px h-5 bg-zinc-200" />
         )}
 
-        {/* 뷰 모드 토글 (분할/프리뷰) */}
-        <div className="flex items-center bg-white border border-zinc-200 rounded-lg p-1 shadow-sm">
-          <button
-            onClick={() => onViewModeChange('split')}
-            className={cn(
-              'flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all',
-              viewMode === 'split'
-                ? 'bg-zinc-100 text-zinc-900 border border-zinc-200 shadow-sm'
-                : 'text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100'
-            )}
-          >
-            <Columns size={12} />
-            분할
-          </button>
-          <button
-            onClick={() => onViewModeChange('preview')}
-            className={cn(
-              'flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all',
-              viewMode === 'preview'
-                ? 'bg-zinc-100 text-zinc-900 border border-zinc-200 shadow-sm'
-                : 'text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100'
-            )}
-          >
-            <Eye size={12} />
-            프리뷰
-          </button>
-        </div>
-
-        {/* 추가 왼쪽 버튼들 */}
-        {leftButtons}
+        {/* 추가 왼쪽 버튼들 (SegmentedControl 스타일 컨테이너) */}
+        {leftButtons && (
+          <div className="inline-flex p-1 bg-white rounded-xl border border-zinc-200 shadow-sm">
+            {leftButtons}
+          </div>
+        )}
       </div>
 
-      {/* 오른쪽 그룹: 추가 버튼 */}
-      <div className="flex items-center gap-2">
+      {/* 오른쪽 그룹: 추가 버튼 (SegmentedControl 스타일 컨테이너) */}
+      {rightButtons && (
+        <div className="inline-flex p-1 bg-white rounded-xl border border-zinc-200 shadow-sm">
         {rightButtons}
       </div>
+      )}
     </div>
   );
 }
@@ -159,16 +149,31 @@ export function ToolbarButton({
 }: ToolbarButtonProps) {
   const getButtonClass = () => {
     if (disabled) {
-      return cn(toolbarButtonStyles.base, 'bg-white/50 text-zinc-400 border border-zinc-200 cursor-not-allowed');
+      return cn(toolbarButtonStyles.base, 'text-zinc-300 cursor-not-allowed');
     }
     if (variant === 'primary') {
-      return cn(toolbarButtonStyles.base, toolbarButtonStyles.activeColor.blue);
+      const primaryStyles = toolbarButtonStyles.activeColor.blue;
+      return cn(toolbarButtonStyles.base, primaryStyles.text);
     }
     if (isActive) {
-      return cn(toolbarButtonStyles.base, toolbarButtonStyles.activeColor.emerald);
+      const activeStyles = toolbarButtonStyles.activeColor.emerald;
+      return cn(toolbarButtonStyles.base, activeStyles.text);
     }
     return cn(toolbarButtonStyles.base, toolbarButtonStyles.inactive);
   };
+
+  const getActiveIndicatorClass = () => {
+    if (disabled) return '';
+    if (variant === 'primary') {
+      return toolbarButtonStyles.activeColor.blue;
+    }
+    if (isActive) {
+      return toolbarButtonStyles.activeColor.emerald;
+    }
+    return null;
+  };
+
+  const activeIndicatorStyles = getActiveIndicatorClass();
 
   return (
     <button
@@ -176,8 +181,17 @@ export function ToolbarButton({
       disabled={disabled}
       className={cn(getButtonClass(), className)}
     >
+      {activeIndicatorStyles && (
+        <motion.div
+          layoutId={`toolbar-button-${label}`}
+          className={cn('absolute inset-0 rounded-lg shadow-sm', activeIndicatorStyles.bg, activeIndicatorStyles.border)}
+          transition={{ type: 'spring', bounce: 0.15, duration: 0.4 }}
+        />
+      )}
+      <span className="relative z-10 flex items-center gap-1.5">
       {icon}
       {label}
+      </span>
     </button>
   );
 }

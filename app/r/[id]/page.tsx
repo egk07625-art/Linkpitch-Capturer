@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { notFound } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { preprocessMarkdown } from "@/lib/markdown-preprocess";
 import { ArrowRight, Download, Share2, MessageSquare } from "lucide-react";
 
 // Types
@@ -141,7 +142,7 @@ export default async function ReportViewerPage({ params }: ReportPageProps) {
               prose-hr:border-slate-100 prose-hr:my-8
             ">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {report.report_markdown}
+                {preprocessMarkdown(report.report_markdown)}
               </ReactMarkdown>
             </div>
           </div>

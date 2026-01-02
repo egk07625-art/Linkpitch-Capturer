@@ -26,7 +26,9 @@ interface SplitViewLayoutProps {
   emailIcon?: ReactNode;
   reportIcon?: ReactNode;
 
-  // 툴바 버튼 (오른쪽 그룹, E/R 토글 앞에 배치)
+  // 툴바 버튼 (왼쪽 그룹, SegmentedControl 오른쪽)
+  leftButtons?: ReactNode;
+  // 툴바 버튼 (오른쪽 그룹)
   toolbarButtons?: ReactNode;
 
   // 스크롤 refs (외부에서 주입)
@@ -49,6 +51,7 @@ export function SplitViewLayout({
   contentType = 'email',
   onContentTypeChange,
   showContentTypeToggle = false,
+  leftButtons,
   toolbarButtons,
   title,
   icon,
@@ -76,25 +79,13 @@ export function SplitViewLayout({
         contentType={contentType}
         onContentTypeChange={onContentTypeChange}
         showContentTypeToggle={showContentTypeToggle}
+        leftButtons={leftButtons}
         rightButtons={toolbarButtons}
       />
 
-      {/* 콘텐츠 영역 */}
+      {/* 콘텐츠 영역 - 항상 분할 모드 */}
       <div className="flex-1 overflow-hidden">
-        {/* 프리뷰 모드: 프리뷰만 */}
-        {viewMode === 'preview' && (
-          <div
-            ref={previewScrollRef}
-            onScroll={onPreviewScroll}
-            className="h-full overflow-y-auto bg-white will-change-scroll"
-            style={{ scrollBehavior: 'auto' }}
-          >
-            {previewContent}
-          </div>
-        )}
-
-        {/* 분할 모드: 에디터 + 프리뷰 (기본) */}
-        {viewMode === 'split' && (
+        {/* 분할 모드: 에디터 + 프리뷰 */}
           <div className="flex h-full divide-x divide-zinc-200">
             {/* 왼쪽: 에디터 */}
             <div className="flex flex-col flex-1 min-w-0">
@@ -129,7 +120,6 @@ export function SplitViewLayout({
               </div>
             </div>
           </div>
-        )}
       </div>
     </div>
   );

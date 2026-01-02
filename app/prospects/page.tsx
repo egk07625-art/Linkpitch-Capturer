@@ -645,6 +645,7 @@ function ClientsPageContent() {
           prospect={selectedProspectForEdit}
           open={isEditOpen}
           onOpenChange={handleEditClose}
+          onSuccess={fetchData}
         />
       )}
 
@@ -706,7 +707,7 @@ function ClientsPageContent() {
                         onClick={() => handleRowClick(prospect.id)}
                       >
                         <div className="col-span-3 flex flex-col justify-center overflow-hidden pl-2">
-                          <div className="text-xl font-bold text-white mb-1.5 truncate">{prospect.store_name || prospect.name}</div>
+                          <div className="text-xl font-bold text-white mb-1.5 truncate">{prospect.name}</div>
                           {prospect.category && (
                             <span className="text-sm font-medium text-zinc-400 mb-1 truncate">{prospect.category}</span>
                           )}

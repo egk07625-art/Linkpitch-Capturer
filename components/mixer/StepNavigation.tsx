@@ -29,7 +29,7 @@ export function StepNavigation({
             onClick={() => hasData && onStepChange(step)}
             disabled={isDisabled}
             className={cn(
-              'relative px-4 py-1.5 rounded-lg text-xs font-medium transition-all duration-200',
+              'relative px-5 py-1.5 rounded-lg text-sm font-medium tracking-tight transition-all duration-200',
               'active:scale-[0.98]',
               isActive
                 ? 'text-zinc-900'

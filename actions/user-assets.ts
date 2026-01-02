@@ -178,3 +178,57 @@ export async function updateUserAssetSummary(
     return { success: false, error: errorMessage };
   }
 }
+
+/**
+ * 이미지 파일을 Supabase Storage에 업로드
+ * 
+ * @param file - 업로드할 이미지 파일
+ * @param fileName - 저장할 파일명 (선택, 기본값: 타임스탬프 기반)
+ * @returns 업로드된 파일의 공개 URL 또는 에러
+ */
+export async function uploadImageToStorage(
+  file: File,
+  fileName?: string
+): Promise<{ url: string | null; error: string | null }> {
+  try {
+    const userId = await getCurrentUserId();
+    if (!userId) {
+      return { url: null, error: '인증이 필요합니다.' };
+    }
+
+    const supabase = getServiceRoleClient();
+    
+    // 파일명 생성 (타임스탬프 + 원본 파일명)
+    const timestamp = Date.now();
+    const sanitizedFileName = fileName || `${timestamp}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+    const filePath = `${userId}/${sanitizedFileName}`;
+
+    // Storage에 업로드
+    const { data, error } = await supabase.storage
+      .from('app-assets')
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false,
+      });
+
+    if (error) {
+      console.error('이미지 업로드 실패:', error);
+      return { url: null, error: error.message };
+    }
+
+    // 공개 URL 가져오기
+    const { data: urlData } = supabase.storage
+      .from('app-assets')
+      .getPublicUrl(filePath);
+
+    if (!urlData?.publicUrl) {
+      return { url: null, error: '공개 URL을 가져올 수 없습니다.' };
+    }
+
+    return { url: urlData.publicUrl, error: null };
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : '알 수 없는 오류';
+    console.error('이미지 업로드 중 예외:', errorMessage);
+    return { url: null, error: errorMessage };
+  }
+}

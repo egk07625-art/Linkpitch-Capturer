@@ -10,12 +10,14 @@ interface ProspectEditDialogProps {
   prospect: Prospect;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
 }
 
 export function ProspectEditDialog({
   prospect,
   open,
   onOpenChange,
+  onSuccess,
 }: ProspectEditDialogProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -83,6 +85,8 @@ export function ProspectEditDialog({
       toast.success("고객사 정보가 업데이트되었습니다.");
       onOpenChange(false);
       router.refresh();
+      // 부모 컴포넌트의 데이터 새로고침 콜백 호출
+      onSuccess?.();
     } catch (error) {
       console.error("Prospect 업데이트 실패:", error);
       toast.error(

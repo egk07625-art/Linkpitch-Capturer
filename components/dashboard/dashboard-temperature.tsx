@@ -182,26 +182,16 @@ export function DashboardTemperature({
       </div>
 
       {/* Live Feed */}
-      <div className="xl:col-span-2 bg-[#161618] border border-[#333] rounded-[2rem] p-8 shadow-xl relative overflow-hidden">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-bold text-white flex items-center gap-2">
-            Live Feed
-          </h3>
-          <button className="text-xs text-zinc-500 hover:text-white transition-colors flex items-center">
-            전체 보기 <ArrowRight className="w-3 h-3 ml-1" />
-          </button>
+      {safeActivities.length === 0 ? (
+        <div className="xl:col-span-2 bg-[#161618] border border-[#333] rounded-[2rem] p-8 shadow-xl relative overflow-hidden flex flex-col justify-center min-h-[160px]">
+          <div className="flex flex-col items-center justify-center text-zinc-600 gap-2">
+            <Clock className="w-8 h-8 opacity-20" />
+            <span className="text-sm font-medium">최근 활동이 없습니다</span>
+          </div>
         </div>
-        <div className="space-y-0 relative min-h-[160px] flex flex-col justify-center">
-          {safeActivities.length === 0 ? (
-            <div className="flex flex-col items-center justify-center text-zinc-600 gap-2">
-              <Clock className="w-8 h-8 opacity-20" />
-              <span className="text-sm font-medium">최근 활동이 없습니다</span>
-            </div>
-          ) : (
-            <ActivityTimelineCard activities={safeActivities} />
-          )}
-        </div>
-      </div>
+      ) : (
+        <ActivityTimelineCard activities={safeActivities} />
+      )}
 
       {/* Focus Accounts */}
       <div className="xl:col-span-4 bg-[#161618] border border-[#333] rounded-[2rem] overflow-hidden shadow-2xl flex flex-col mt-4">

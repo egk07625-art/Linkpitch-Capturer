@@ -9,7 +9,7 @@ import {
   Mail, FileText, Send, Save, ArrowLeft, Sparkles, ChevronDown, ChevronRight,
   Plus, X, Folder, FolderOpen, Trash2, Edit2, Check, LayoutTemplate, HelpCircle, FileOutput, ShieldCheck, Clock,
   BarChart2, TrendingUp, TrendingDown, Search, Zap, Link as LinkIcon, Target, Map, MousePointer2, CheckCircle2, Cpu, Coins, UserCheck, Navigation,
-  Eye, Pencil, Columns, Copy, Maximize2, Keyboard, Type, Wand2
+  Eye, Pencil, Columns, Copy, Maximize2, Keyboard, Type, Wand2, BookOpen
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Editor from '@monaco-editor/react';
@@ -33,6 +33,10 @@ import { StepNavigation } from '@/components/mixer/StepNavigation';
 import { WorkspaceHeader } from '@/components/mixer/WorkspaceHeader';
 import { SubjectOptionsCompact } from '@/components/mixer/SubjectOptionsCompact';
 import { useWorkspaceShortcuts } from '@/hooks/useWorkspaceShortcuts';
+import { getUserAssets, createUserAsset, deleteUserAsset } from '@/actions/user-assets';
+import type { UserAsset } from '@/types/user-asset';
+import { useClerkSupabaseClient } from '@/lib/supabase/clerk-client';
+import { useAuth } from '@clerk/nextjs';
 
 // [Design] Step별 제목 카테고리 정의
 const STEP_SUBJECT_CATEGORIES: Record<number, Record<string, { label: string, icon: any }>> = {
@@ -75,6 +79,13 @@ type FolderType = {
   assets: Asset[];
 };
 
+// User Asset의 summary 필드에서 파싱되는 데이터 구조
+type UserAssetData = {
+  category: string;
+  content: string;
+  tags?: string[];
+};
+
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB 제한
 
 interface InsightMixerClientProps {
@@ -82,6 +93,10 @@ interface InsightMixerClientProps {
 }
 
 export default function InsightMixerClient({ prospectId }: InsightMixerClientProps) {
+  // Supabase 클라이언트 및 인증 정보 (React Hook은 최상위에서 호출)
+  const { userId: clerkId } = useAuth();
+  const supabase = useClerkSupabaseClient();
+
   // --- State ---
   const [loading, setLoading] = useState(true);
   const [prospect, setProspect] = useState<any>(null);
@@ -117,6 +132,17 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
   const [draggedAsset, setDraggedAsset] = useState<Asset | null>(null);
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
   const [tempFolderName, setTempFolderName] = useState('');
+
+  // User Assets 데이터 (데이터베이스에서 불러옴)
+  const [userAssets, setUserAssets] = useState<UserAsset[]>([]);
+  const [isLoadingAssets, setIsLoadingAssets] = useState(true);
+  
+  // User Asset 추가 모달 상태
+  const [isAddAssetOpen, setIsAddAssetOpen] = useState(false);
+  const [newAssetTitle, setNewAssetTitle] = useState('');
+  const [newAssetCategory, setNewAssetCategory] = useState('진단');
+  const [newAssetContent, setNewAssetContent] = useState('');
+  const [newAssetTags, setNewAssetTags] = useState<string[]>([]);
 
   // Refs
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -192,6 +218,22 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
     };
     fetchData();
   }, [prospectId]);
+
+  // User Assets 불러오기
+  useEffect(() => {
+    const loadUserAssets = async () => {
+      setIsLoadingAssets(true);
+      const { data, error } = await getUserAssets({ fileType: 'strategy' });
+      if (error) {
+        toast.error('User Assets를 불러오는데 실패했습니다.');
+        console.error('User Assets 로드 실패:', error);
+      } else {
+        setUserAssets(data || []);
+      }
+      setIsLoadingAssets(false);
+    };
+    loadUserAssets();
+  }, []);
 
   // --- Logic Helpers ---
   const currentStepData = allStepsData.find(item => item.step_number === activeStep);
@@ -272,38 +314,68 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
 
   /**
    * 마크다운 볼드(**) → HTML <strong> 태그로 강제 변환
+   * 표 블록을 보호하여 ReactMarkdown이 올바르게 처리하도록 함
    * 변환 후 공백 복원 방식 - 단어와 태그 사이 공백 명시적 추가
    */
   const convertBoldToHtml = (text: string): string => {
     if (!text) return '';
 
-    const originalAsterisks = (text.match(/\*\*/g) || []).length;
-    let result = text;
+    // 디버깅: 원본 마크다운 확인
+    console.log('=== 원본 마크다운 ===');
+    console.log(text);
 
-    // ===== 1단계: ** 내부 공백 정리 =====
+    // 표 블록 추출 및 보호 (표 감지 정규식)
+    // 헤더 행 + 정렬 행 + 데이터 행들을 모두 포함하는 패턴
+    const tableRegex = /^\|(.+)\|\s*\n\|[\s\-:]+\|\s*\n((?:\|.+\|\s*\n?)+)/gm;
+    const tables: string[] = [];
+    let tableIndex = 0;
+    
+    // 표 블록을 플레이스홀더로 교체
+    let result = text.replace(tableRegex, (match) => {
+      tables.push(match);
+      return `__TABLE_PLACEHOLDER_${tableIndex++}__`;
+    });
+
+    // 디버깅: 표 감지 확인
+    console.log('=== 감지된 표 개수 ===', tables.length);
+    if (tables.length > 0) {
+      console.log('=== 표 블록 샘플 (첫 번째) ===');
+      console.log(tables[0]);
+    }
+
+    // 표 외부 영역에서만 볼드 변환
+    const originalAsterisks = (result.match(/\*\*/g) || []).length;
+    
+    // ===== 1단계: ** 내부 공백 정리 (표 외부만) =====
     // ** 텍스트 ** → **텍스트**
     result = result.replace(/\*\*\s+([^*]+?)\s+\*\*/g, '**$1**');
     result = result.replace(/\*\*\s+([^*]+?)\*\*/g, '**$1**');
     result = result.replace(/\*\*([^*]+?)\s+\*\*/g, '**$1**');
 
-    // ===== 2단계: 볼드 → <strong> 변환 =====
+    // ===== 2단계: 볼드 → <strong> 변환 (표 외부만) =====
     result = result.replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>');
 
-    // ===== 3단계: 특수 컨텍스트 추가 처리 =====
+    // ===== 3단계: 특수 컨텍스트 추가 처리 (표 외부만) =====
     result = result.replace(/\[\*\*([^\]]+?)\*\*\]/g, '[<strong>$1</strong>]');
     result = result.replace(/\(\*\*([^)]+?)\*\*\)/g, '(<strong>$1</strong>)');
-    result = result.replace(/\|\*\*([^|]+?)\*\*\|/g, '|<strong>$1</strong>|');
-    result = result.replace(/\|\*\*([^|]+?)\*\*/g, '|<strong>$1</strong>');
-    result = result.replace(/\*\*([^|]+?)\*\*\|/g, '<strong>$1</strong>|');
 
-    // ===== 4단계: 남은 고아 별표 제거 =====
+    // ===== 4단계: 남은 고아 별표 제거 (표 외부만) =====
     result = result.replace(/\*\*/g, '');
 
-    // ===== 5단계: 공백 복원 (핵심!) =====
+    // ===== 5단계: 공백 복원 =====
     // 한글/영문/숫자/닫는괄호 바로 뒤에 <strong>이 붙어있으면 공백 추가
     result = result.replace(/([가-힣a-zA-Z0-9\)\]\%])<strong>/g, '$1 <strong>');
     // </strong> 바로 뒤에 한글/영문/숫자/여는괄호가 붙어있으면 공백 추가
     result = result.replace(/<\/strong>([가-힣a-zA-Z0-9\(\[])/g, '</strong> $1');
+
+    // 표 블록 복원 (원본 그대로 - ReactMarkdown이 처리하도록)
+    tables.forEach((table, index) => {
+      result = result.replace(`__TABLE_PLACEHOLDER_${index}__`, table);
+    });
+
+    // 디버깅: 변환된 결과 확인
+    console.log('=== 변환된 마크다운 (표 보호됨) ===');
+    console.log(result);
 
     // 검증 로그
     const strongTags = (result.match(/<strong>/g) || []).length;
@@ -311,16 +383,49 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
     console.log('[볼드 최적화 결과]', {
       변환전_별표쌍: originalAsterisks / 2,
       생성된_strong_태그: strongTags,
+      감지된_표_개수: tables.length,
       샘플: sample || '없음',
     });
 
     return result;
   };
 
-  // 리포트 프리뷰용 콘텐츠 (볼드 → HTML 변환 적용)
+  // Markdown Sanitizer: 표, 제목, 구분선 앞뒤에 빈 줄 복구 (표 정렬 기호 보호)
+  const sanitizeMarkdown = (text: string): string => {
+    return text
+      // 1. 표 내부의 기호(| :--- |)는 건드리지 않고, 문장(글자, 숫자, 마침표) 뒤에 바로 붙은 구분선만 처리
+      .replace(/([가-힣a-zA-Z0-9.])(---)/g, '$1\n\n$2')
+      
+      // 2. 표(Table) 시작 전에 빈 줄이 없다면 강제 삽입 (표 깨짐 방지)
+      .replace(/([^\n])\n\|/g, '$1\n\n|')
+      
+      // 3. 섹션 제목(#) 시작 전에 빈 줄이 없다면 강제 삽입
+      .replace(/([^\n])\n#/g, '$1\n\n#')
+      
+      // 4. 불필요하게 생성된 중복 빈 줄 정리 (3개 이상 -> 2개로)
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  };
+
+  // 리포트 프리뷰용 콘텐츠 (볼드 → HTML 변환 + 구분선 제거 적용)
   const getPreviewContent = () => {
-    const content = reportMarkdown || currentStepData?.report_markdown || '# 리포트 작성\n\n여기에 마크다운으로 리포트를 작성하세요...';
-    return isMarkdownCleaned ? convertBoldToHtml(content) : content;
+    // reportMarkdownRef.current를 우선적으로 사용 (실시간 값, 이미지 삽입 등 즉시 반영)
+    let content = reportMarkdownRef.current || reportMarkdown || currentStepData?.report_markdown || '# 리포트 작성\n\n여기에 마크다운으로 리포트를 작성하세요...';
+
+    if (isMarkdownCleaned) {
+      // [최적화 ON] 구분선(---) 완전 제거
+      // 패턴 1: 줄 전체가 ---인 경우 (앞뒤 공백 포함)
+      content = content.replace(/^\s*-{3,}\s*$/gm, '');
+      // 패턴 2: 문장에 붙어있는 --- 제거 (예: "원인입니다.---")
+      content = content.replace(/-{3,}/g, '');
+      // 빈 줄 정리 (3개 이상 연속 → 2개로)
+      content = content.replace(/\n{3,}/g, '\n\n');
+
+      // 볼드 → HTML 변환
+      content = convertBoldToHtml(content);
+    }
+
+    return content;
   };
 
   // 이메일 프리뷰용 콘텐츠 (Monaco 에디터 내용 사용)
@@ -555,6 +660,11 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
     monacoEditorRef.current = editor;
     setEditorInstance(editor); // 툴바용 상태 업데이트
 
+    // 클립보드 붙여넣기 이벤트 리스너 추가
+    const container = editor.getContainerDomNode();
+    const pasteHandler = (e: ClipboardEvent) => handlePasteImage(e);
+    container.addEventListener('paste', pasteHandler);
+
     // 에디터 스크롤 시 프리뷰 동기화 (RAF + 상호 배제)
     editor.onDidScrollChange(() => {
       // 1. 프리뷰가 스크롤 중이면 무시 (무한 루프 차단)
@@ -649,6 +759,11 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
   // 이메일 Monaco Editor 마운트 핸들러 - RAF 기반 실크 스크롤
   const handleEmailEditorMount = (editor: any) => {
     emailMonacoRef.current = editor;
+
+    // 클립보드 붙여넣기 이벤트 리스너 추가
+    const container = editor.getContainerDomNode();
+    const pasteHandler = (e: ClipboardEvent) => handlePasteImage(e);
+    container.addEventListener('paste', pasteHandler);
 
     // 에디터 스크롤 시 프리뷰 동기화 (RAF + 상호 배제)
     editor.onDidScrollChange(() => {
@@ -964,8 +1079,31 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
   // 3. 에디터에 드롭 (Insert Logic)
   const handleEditorDrop = (e: React.DragEvent) => {
     e.preventDefault();
+    
+    // 1. 파일이 드롭된 경우 (이미지 파일 직접 드롭)
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const files = Array.from(e.dataTransfer.files);
+      const imageFiles = files.filter(file => file.type.startsWith('image/'));
+      
+      if (imageFiles.length > 0) {
+        // 각 이미지를 순차적으로 삽입
+        imageFiles.forEach((file, index) => {
+          setTimeout(() => {
+            insertImageToEditor(file);
+          }, index * 100); // 약간의 딜레이로 순차 삽입
+        });
+        
+        setDraggedAsset(null);
+        return;
+      }
+    }
+
+    // 2. 기존 Asset 드롭 로직 (기존 코드 유지)
     const assetData = e.dataTransfer.getData('application/json');
-    if (!assetData) return;
+    if (!assetData) {
+      setDraggedAsset(null);
+      return;
+    }
 
     try {
       const asset: Asset = JSON.parse(assetData);
@@ -976,27 +1114,405 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
     setDraggedAsset(null);
   };
 
-  // 4. 실제 삽입 함수
-  const insertAssetToEditor = (asset: Asset) => {
-    if (!editorRef.current) return;
-    editorRef.current.focus();
+  // User Asset 추가 함수
+  const addUserAsset = async () => {
+    if (!newAssetTitle.trim() || !newAssetContent.trim()) {
+      toast.error('제목과 내용을 입력해주세요.');
+      return;
+    }
 
+    const assetData: UserAssetData = {
+      category: newAssetCategory,
+      content: newAssetContent,
+      tags: newAssetTags.length > 0 ? newAssetTags : undefined,
+    };
+
+    const { data, error } = await createUserAsset({
+      file_type: 'strategy',
+      file_url: '',
+      file_name: newAssetTitle,
+      summary: JSON.stringify(assetData),
+    });
+
+    if (error) {
+      toast.error('User Asset 저장에 실패했습니다.');
+      console.error('User Asset 생성 실패:', error);
+      return;
+    }
+
+    if (data) {
+      setUserAssets([data, ...userAssets]);
+      toast.success('User Asset이 저장되었습니다.');
+      setIsAddAssetOpen(false);
+      setNewAssetTitle('');
+      setNewAssetCategory('진단');
+      setNewAssetContent('');
+      setNewAssetTags([]);
+    }
+  };
+
+  // User Asset 삭제 함수
+  const removeUserAsset = async (assetId: string) => {
+    if (!confirm('이 User Asset을 삭제하시겠습니까?')) {
+      return;
+    }
+
+    const { success, error } = await deleteUserAsset(assetId);
+    if (error) {
+      toast.error('User Asset 삭제에 실패했습니다.');
+      console.error('User Asset 삭제 실패:', error);
+      return;
+    }
+
+    if (success) {
+      setUserAssets(userAssets.filter(a => a.id !== assetId));
+      toast.success('User Asset이 삭제되었습니다.');
+    }
+  };
+
+  // 파일을 Base64로 변환하는 유틸리티 함수
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
+  // 클라이언트에서 직접 Supabase Storage에 업로드하는 함수 (Server Action 제한 회피)
+  const uploadImageToStorageClient = useCallback(async (file: File): Promise<string | null> => {
+    if (!clerkId) {
+      toast.error('인증이 필요합니다.');
+      return null;
+    }
+
+    try {
+      // 파일명 생성 (타임스탬프 + 원본 파일명)
+      const timestamp = Date.now();
+      const sanitizedFileName = `${timestamp}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+      const filePath = `${clerkId}/${sanitizedFileName}`;
+
+      // Storage에 업로드
+      const { data, error } = await supabase.storage
+        .from('app-assets')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (error) {
+        console.error('이미지 업로드 실패:', error);
+        toast.error(`이미지 업로드에 실패했습니다: ${error.message}`);
+        return null;
+      }
+
+      // 공개 URL 가져오기
+      const { data: urlData } = supabase.storage
+        .from('app-assets')
+        .getPublicUrl(filePath);
+
+      if (!urlData?.publicUrl) {
+        toast.error('공개 URL을 가져올 수 없습니다.');
+        return null;
+      }
+
+      return urlData.publicUrl;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '알 수 없는 오류';
+      console.error('이미지 업로드 중 예외:', errorMessage);
+      toast.error(`이미지 업로드 중 오류가 발생했습니다: ${errorMessage}`);
+      return null;
+    }
+  }, [clerkId, supabase]);
+
+  // 이미지 파일을 에디터에 마크다운 형식으로 삽입하는 함수
+  const insertImageToEditor = useCallback(async (file: File) => {
+    let editor: any = null;
+    let currentValue = '';
+    let setValue: (value: string) => void = () => {};
+
+    // 현재 활성 탭에 따라 적절한 에디터 선택
+    if (activeTab === 'email') {
+      editor = emailMonacoRef.current;
+      currentValue = emailBodyRef.current || emailBody || '';
+      setValue = (value: string) => {
+        emailBodyRef.current = value;
+        setEmailBody(value);
+      };
+    } else {
+      editor = monacoEditorRef.current;
+      currentValue = reportMarkdownRef.current || reportMarkdown || currentStepData?.report_markdown || '';
+      setValue = (value: string) => {
+        reportMarkdownRef.current = value;
+        setReportMarkdown(value);
+      };
+    }
+
+    if (!editor) {
+      toast.error('에디터를 찾을 수 없습니다.');
+      return;
+    }
+
+    // 현재 커서 위치 가져오기
+    const position = editor.getPosition();
+    if (!position) {
+      toast.error('에디터 위치를 찾을 수 없습니다.');
+      return;
+    }
+
+    // 이미지 URL 결정: 300KB 이하면 Base64, 초과하면 Storage 업로드
+    // Base64는 원본보다 약 33% 크므로 300KB 원본 → 약 400KB Base64 (안전 마진 확보)
+    const MAX_BASE64_SIZE = 300 * 1024; // 300KB
+    let imageUrl: string;
+    
+    try {
+      if (file.size <= MAX_BASE64_SIZE) {
+        // Base64 변환
+        imageUrl = await fileToBase64(file);
+      } else {
+        // 클라이언트에서 직접 Supabase Storage 업로드 (Server Action 제한 회피)
+        toast.info('이미지를 업로드하는 중...');
+        const uploadedUrl = await uploadImageToStorageClient(file);
+        if (!uploadedUrl) {
+          // 에러는 uploadImageToStorageClient 내부에서 이미 토스트로 표시됨
+          return;
+        }
+        imageUrl = uploadedUrl;
+      }
+
+      // 마크다운 형식으로 삽입 (![alt](url) 형식)
+      const imageMarkdown = `![${file.name || '이미지'}](${imageUrl})\n\n`;
+      
+      editor.executeEdits('insert-image', [{
+      range: {
+        startLineNumber: position.lineNumber,
+        startColumn: position.column,
+        endLineNumber: position.lineNumber,
+        endColumn: position.column,
+      },
+      text: imageMarkdown,
+    }]);
+
+    // 상태 업데이트
+    const model = editor.getModel();
+    if (model) {
+      const offset = model.getOffsetAt(position);
+      const newValue = currentValue.slice(0, offset) + imageMarkdown + currentValue.slice(offset);
+      setValue(newValue);
+      
+      // 리포트 탭인 경우 상태도 강제 업데이트하여 프리뷰 즉시 갱신
+      if (activeTab === 'report') {
+        // 약간의 딜레이를 두고 상태 업데이트 (에디터 업데이트 후)
+        setTimeout(() => {
+          setReportMarkdown(newValue);
+        }, 0);
+      }
+    }
+
+      // 커서 위치 업데이트
+      const insertLines = imageMarkdown.split('\n');
+      const newLine = position.lineNumber + insertLines.length - 1;
+      editor.setPosition({ lineNumber: newLine, column: 1 });
+      editor.focus();
+      
+      toast.success('이미지가 삽입되었습니다.');
+    } catch (error) {
+      console.error('이미지 삽입 중 오류:', error);
+      toast.error('이미지 삽입에 실패했습니다.');
+    }
+  }, [activeTab, emailBody, reportMarkdown, currentStepData, uploadImageToStorageClient]);
+
+  // 클립보드 이미지 붙여넣기 핸들러
+  const handlePasteImage = useCallback(async (e: ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      
+      // 이미지 타입 확인 (모든 이미지 형식 지원)
+      if (item.type.indexOf('image') !== -1) {
+        e.preventDefault();
+        
+        const file = item.getAsFile();
+        if (!file) continue;
+
+        // 이미지 파일을 에디터에 삽입
+        insertImageToEditor(file);
+        break;
+      }
+    }
+  }, [insertImageToEditor]);
+
+  // User Asset 삽입 함수
+  const insertUserAsset = (asset: { content: string }) => {
+    let editor: any = null;
+    let currentValue = '';
+    let setValue: (value: string) => void = () => {};
+
+    // 현재 활성 탭에 따라 적절한 에디터 선택
+    if (activeTab === 'email') {
+      editor = emailMonacoRef.current;
+      currentValue = emailBodyRef.current || emailBody || '';
+      setValue = (value: string) => {
+        emailBodyRef.current = value;
+        setEmailBody(value);
+      };
+    } else {
+      editor = monacoEditorRef.current;
+      currentValue = reportMarkdownRef.current || reportMarkdown || currentStepData?.report_markdown || '';
+      setValue = (value: string) => {
+        reportMarkdownRef.current = value;
+        setReportMarkdown(value);
+      };
+    }
+
+    if (!editor) {
+      toast.error('에디터를 찾을 수 없습니다.');
+      return;
+    }
+
+    // 현재 커서 위치 가져오기
+    const position = editor.getPosition();
+    const model = editor.getModel();
+    if (!model || !position) {
+      toast.error('에디터 위치를 찾을 수 없습니다.');
+      return;
+    }
+
+    // 커서 위치의 오프셋 계산
+    const offset = model.getOffsetAt(position);
+    
+    // content에 이미지 URL이 포함된 경우 마크다운 이미지 형식으로 변환
+    let insertText = asset.content;
+    
+    // 이미지 URL 패턴 감지 (blob:, data:image/, https://로 시작하는 이미지 URL)
+    const imageUrlPattern = /(blob:|data:image\/|https?:\/\/[^\s\)]+\.(jpg|jpeg|png|gif|webp|svg))/gi;
+    const urlMatches = insertText.match(imageUrlPattern);
+    
+    if (urlMatches && urlMatches.length > 0) {
+      // 이미지 URL이 감지되면 마크다운 이미지 형식으로 변환
+      urlMatches.forEach((url) => {
+        // 이미 마크다운 이미지 형식(![alt](url))이 아닌 경우에만 변환
+        if (!insertText.includes(`![`) || !insertText.includes(`](${url})`)) {
+          // URL을 마크다운 이미지 형식으로 변환
+          insertText = insertText.replace(url, `![이미지](${url})`);
+        }
+      });
+    }
+    
+    // 새 값 생성
+    insertText = insertText + '\n\n';
+    const newValue = currentValue.slice(0, offset) + insertText + currentValue.slice(offset);
+    
+    // 에디터에 삽입
+    editor.executeEdits('insert-user-asset', [{
+      range: {
+        startLineNumber: position.lineNumber,
+        startColumn: position.column,
+        endLineNumber: position.lineNumber,
+        endColumn: position.column,
+      },
+      text: insertText,
+    }]);
+
+    // 상태 업데이트
+    setValue(newValue);
+
+    // 커서 위치 업데이트
+    const insertLines = insertText.split('\n');
+    const newLine = position.lineNumber + insertLines.length - 1;
+    const newColumn = insertLines.length === 1 
+      ? position.column + insertLines[0].length
+      : insertLines[insertLines.length - 1].length + 1;
+    
+    editor.setPosition({ lineNumber: newLine, column: newColumn });
+    editor.focus();
+    toast.success('User Asset이 삽입되었습니다.');
+  };
+
+  // 4. 실제 삽입 함수 (Monaco Editor용)
+  const insertAssetToEditor = (asset: Asset) => {
+    let editor: any = null;
+    let currentValue = '';
+    let setValue: (value: string) => void = () => {};
+
+    // 현재 활성 탭에 따라 적절한 에디터 선택
+    if (activeTab === 'email') {
+      editor = emailMonacoRef.current;
+      currentValue = emailBodyRef.current || emailBody || '';
+      setValue = (value: string) => {
+        emailBodyRef.current = value;
+        setEmailBody(value);
+      };
+    } else {
+      editor = monacoEditorRef.current;
+      currentValue = reportMarkdownRef.current || reportMarkdown || currentStepData?.report_markdown || '';
+      setValue = (value: string) => {
+        reportMarkdownRef.current = value;
+        setReportMarkdown(value);
+      };
+    }
+
+    if (!editor) {
+      toast.error('에디터를 찾을 수 없습니다.');
+      return;
+    }
+
+    // 현재 커서 위치 가져오기
+    const position = editor.getPosition();
+    const model = editor.getModel();
+    if (!model || !position) {
+      toast.error('에디터 위치를 찾을 수 없습니다.');
+      return;
+    }
+
+    // 커서 위치의 오프셋 계산
+    const offset = model.getOffsetAt(position);
+    const lines = currentValue.split('\n');
+    
+    let insertText = '';
     if (asset.type === 'image') {
-      document.execCommand('insertHTML', false,
-        `<img src="${asset.url}" alt="${asset.name}" style="max-width: 100%; border-radius: 8px; margin: 10px 0; box-shadow: 0 4px 12px rgba(0,0,0,0.1);" /><br>`
-      );
+      // 마크다운 이미지 형식으로 삽입
+      insertText = `![${asset.name}](${asset.url})\n\n`;
       toast.success("이미지가 본문에 삽입되었습니다.");
     } else if (asset.type === 'text') {
-      // 텍스트 파일은 내용을 삽입
-      document.execCommand('insertText', false, asset.content || '');
+      // 텍스트 파일 내용 삽입
+      insertText = asset.content || '';
       toast.success("텍스트가 본문에 삽입되었습니다.");
     } else {
-      // 일반 파일은 링크 형태 텍스트 삽입
-      document.execCommand('insertHTML', false,
-        `<span style="background: #2C2C2E; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 0.9em;">📎 ${asset.name}</span>&nbsp;`
-      );
+      // 일반 파일은 링크 형태로 삽입
+      insertText = `[📎 ${asset.name}](${asset.url})\n\n`;
       toast.info("파일 링크가 본문에 삽입되었습니다.");
     }
+
+    // 새 값 생성
+    const newValue = currentValue.slice(0, offset) + insertText + currentValue.slice(offset);
+    
+    // 에디터에 삽입
+    editor.executeEdits('insert-asset', [{
+      range: {
+        startLineNumber: position.lineNumber,
+        startColumn: position.column,
+        endLineNumber: position.lineNumber,
+        endColumn: position.column,
+      },
+      text: insertText,
+    }]);
+
+    // 상태 업데이트
+    setValue(newValue);
+
+    // 커서 위치 업데이트 (삽입된 텍스트 길이만큼 이동)
+    const insertLines = insertText.split('\n');
+    const newLine = position.lineNumber + insertLines.length - 1;
+    const newColumn = insertLines.length === 1 
+      ? position.column + insertLines[0].length
+      : insertLines[insertLines.length - 1].length + 1;
+    
+    editor.setPosition({ lineNumber: newLine, column: newColumn });
+    editor.focus();
   };
 
   // --- Rendering ---
@@ -1007,7 +1523,7 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
     <div className="h-[100dvh] w-full bg-black text-zinc-100 font-sans flex flex-col overflow-hidden selection:bg-white/20">
 
       {/* Hidden File Input (Global) */}
-      <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" multiple />
+      <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" multiple accept="image/*" />
 
       {/* ===== 워크스페이스 헤더 ===== */}
       <WorkspaceHeader
@@ -1020,19 +1536,396 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
         isHistoryOpen={isHistoryOpen}
       />
 
+      {/* ===== User Assets Drawer (Apple Style Overlay) ===== */}
+      <div
+        className={`fixed top-14 left-0 h-[calc(100vh-56px)] w-[400px] z-[1100] transition-transform ${
+          isLibraryOpen ? 'translate-x-[256px]' : '-translate-x-[400px]'
+        }`}
+        style={{
+          transitionDuration: '600ms',
+          transitionTimingFunction: 'cubic-bezier(0.19, 1, 0.22, 1)',
+          background: 'rgba(255, 255, 255, 0.75)',
+          backdropFilter: 'blur(40px) saturate(180%) contrast(90%)',
+          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+          borderRight: '1px solid rgba(0, 0, 0, 0.08)',
+          borderRadius: '0 20px 20px 0',
+          boxShadow: '20px 0 50px rgba(0, 0, 0, 0.05)',
+        }}
+      >
+        <div className="h-full flex flex-col overflow-hidden">
+          {/* Header */}
+          <div className="px-8 py-6 border-b border-black/8 flex justify-between items-center shrink-0">
+            <h2 className="text-[22px] font-bold text-[#1d1d1f]" style={{ letterSpacing: '-0.03em' }}>
+              User Assets
+            </h2>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setIsAddAssetOpen(true)}
+                className="p-2 hover:bg-black/5 rounded-lg transition-colors"
+                title="User Asset 추가"
+              >
+                <Plus className="w-5 h-5 text-[#1d1d1f]/60" />
+              </button>
+              <button 
+                onClick={() => setIsLibraryOpen(false)} 
+                className="p-2 hover:bg-black/5 rounded-lg transition-colors" 
+                title="닫기"
+              >
+                <X className="w-5 h-5 text-[#1d1d1f]/60" />
+              </button>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto px-8 py-6 space-y-6">
+            {/* 로딩 상태 */}
+            {isLoadingAssets ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="w-6 h-6 border-2 border-[#1d1d1f]/20 border-t-[#1d1d1f]/60 rounded-full animate-spin" />
+              </div>
+            ) : userAssets.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-sm text-[#1d1d1f]/50 mb-4">User Asset이 없습니다.</p>
+                <button
+                  onClick={() => setIsAddAssetOpen(true)}
+                  className="px-4 py-2 bg-[#1d1d1f] text-white rounded-lg text-sm font-medium hover:bg-[#1d1d1f]/90 transition-colors"
+                >
+                  첫 번째 Asset 추가하기
+                </button>
+              </div>
+            ) : (
+              /* User Asset 카드들 */
+              userAssets.map((asset) => {
+                // summary JSON 파싱
+                let parsedData: UserAssetData;
+                try {
+                  parsedData = JSON.parse(asset.summary || '{}');
+                } catch {
+                  parsedData = { category: '기타', content: asset.summary || '', tags: [] };
+                }
+
+                return (
+                  <div
+                    key={asset.id}
+                    onClick={() => insertUserAsset({ content: parsedData.content })}
+                    className="group relative p-6 bg-white/50 hover:bg-white/80 rounded-2xl border border-black/8 hover:border-black/12 transition-all cursor-pointer"
+                    style={{ boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)' }}
+                  >
+                    <div className="flex items-start justify-between gap-4 mb-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="px-2.5 py-1 rounded-lg bg-[#1d1d1f]/10 text-xs font-semibold text-[#1d1d1f]">
+                            {parsedData.category}
+                          </span>
+                          {parsedData.tags && parsedData.tags.map((tag) => (
+                            <span key={tag} className="px-2 py-0.5 rounded text-[10px] text-[#1d1d1f]/50">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                        <h3 className="text-base font-bold text-[#1d1d1f] leading-tight" style={{ letterSpacing: '-0.01em' }}>
+                          {asset.file_name}
+                        </h3>
+                      </div>
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-black/8">
+                      <p className="text-sm text-[#1d1d1f]/70 line-clamp-4 leading-relaxed">
+                        {parsedData.content.split('\n\n')[0].replace(/\*\*/g, '').substring(0, 150)}...
+                      </p>
+                    </div>
+                    <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeUserAsset(asset.id);
+                        }}
+                        className="p-1.5 hover:bg-red-50 rounded-lg transition-colors"
+                        title="삭제"
+                      >
+                        <Trash2 className="w-4 h-4 text-red-500" />
+                      </button>
+                      <div className="w-8 h-8 rounded-full bg-[#1d1d1f]/10 flex items-center justify-center">
+                        <Plus className="w-4 h-4 text-[#1d1d1f]/60" />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+
+            {/* 기존 폴더 목록 (하위 호환성) */}
+            {folders.length > 0 && (
+              <div className="pt-6 border-t border-black/8">
+                <h3 className="text-sm font-semibold text-[#1d1d1f]/60 mb-4 uppercase tracking-wider">기존 자료</h3>
+                {folders.map((folder) => (
+              <div key={folder.id} className="mb-4 p-4 bg-white/30 rounded-xl border border-black/8 overflow-hidden">
+                {/* 폴더 헤더 */}
+                <div 
+                  className="px-4 py-3 bg-white/50 hover:bg-white/70 transition-colors flex items-center justify-between cursor-pointer rounded-lg"
+                  onClick={() => setFolders(folders.map(f => f.id === folder.id ? { ...f, isOpen: !f.isOpen } : f))}
+                >
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    {folder.isOpen ? (
+                      <ChevronDown className="w-4 h-4 text-[#1d1d1f]/60 shrink-0" />
+                    ) : (
+                      <ChevronRight className="w-4 h-4 text-[#1d1d1f]/60 shrink-0" />
+                    )}
+                    {editingFolderId === folder.id ? (
+                      <input
+                        type="text"
+                        value={tempFolderName}
+                        onChange={(e) => setTempFolderName(e.target.value)}
+                        onBlur={saveFolderName}
+                        onKeyDown={(e) => e.key === 'Enter' && saveFolderName()}
+                        className="flex-1 bg-white border border-black/20 rounded-lg px-3 py-1.5 text-sm text-[#1d1d1f] outline-none min-w-0"
+                        autoFocus
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    ) : (
+                      <span 
+                        className="text-sm font-medium text-[#1d1d1f] truncate"
+                        onDoubleClick={(e) => {
+                          e.stopPropagation();
+                          setEditingFolderId(folder.id);
+                          setTempFolderName(folder.name);
+                        }}
+                      >
+                        {folder.name}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={(e) => triggerFileUpload(folder.id, e)}
+                      className="p-1.5 text-[#1d1d1f]/50 hover:text-[#1d1d1f] hover:bg-black/5 transition-colors rounded-lg"
+                      title="파일 추가"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={(e) => deleteFolder(folder.id, e)}
+                      className="p-1.5 text-[#1d1d1f]/50 hover:text-red-500 hover:bg-red-50 transition-colors rounded-lg"
+                      title="폴더 삭제"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* 폴더 내용 (Asset 목록) */}
+                {folder.isOpen && (
+                  <div className="mt-3 space-y-2">
+                    {folder.assets.length === 0 ? (
+                      <div className="text-center py-6 text-sm text-[#1d1d1f]/50">
+                        파일이 없습니다
+                      </div>
+                    ) : (
+                      folder.assets.map((asset) => (
+                        <div
+                          key={asset.id}
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, asset)}
+                          className="group relative p-3 bg-white/40 hover:bg-white/60 rounded-lg border border-black/8 hover:border-black/12 transition-all cursor-grab active:cursor-grabbing"
+                        >
+                          <div className="flex items-start gap-3">
+                            {asset.type === 'image' && (
+                              <div className="w-12 h-12 rounded-lg bg-black/5 flex items-center justify-center shrink-0 overflow-hidden">
+                                <img src={asset.url} alt={asset.name} className="w-full h-full object-cover" />
+                              </div>
+                            )}
+                            {asset.type === 'text' && (
+                              <div className="w-12 h-12 rounded-lg bg-black/5 flex items-center justify-center shrink-0">
+                                <FileText className="w-6 h-6 text-[#1d1d1f]/40" />
+                              </div>
+                            )}
+                            {asset.type === 'file' && (
+                              <div className="w-12 h-12 rounded-lg bg-black/5 flex items-center justify-center shrink-0">
+                                <FileText className="w-6 h-6 text-[#1d1d1f]/40" />
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-[#1d1d1f] truncate">{asset.name}</p>
+                              {asset.type === 'text' && asset.content && (
+                                <p className="text-xs text-[#1d1d1f]/50 mt-1 line-clamp-2">{asset.content.substring(0, 50)}...</p>
+                              )}
+                            </div>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setFolders(folders.map(f => 
+                                  f.id === folder.id 
+                                    ? { ...f, assets: f.assets.filter(a => a.id !== asset.id) }
+                                    : f
+                                ));
+                              }}
+                              className="opacity-0 group-hover:opacity-100 p-1.5 text-[#1d1d1f]/50 hover:text-red-500 hover:bg-red-50 transition-all shrink-0 rounded-lg"
+                              title="삭제"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {/* 새 폴더 추가 버튼 */}
+            <button
+              onClick={addFolder}
+              className="w-full py-3 px-4 border border-dashed border-black/20 hover:border-black/30 rounded-xl text-sm text-[#1d1d1f]/60 hover:text-[#1d1d1f] transition-colors flex items-center justify-center gap-2 bg-white/30 hover:bg-white/50"
+            >
+              <Plus className="w-4 h-4" />
+              새 폴더 추가
+            </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ===== User Asset 추가 모달 ===== */}
+      {isAddAssetOpen && (
+        <div 
+          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[1200] flex items-center justify-center p-4"
+          onClick={() => setIsAddAssetOpen(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-[#1d1d1f]" style={{ letterSpacing: '-0.02em' }}>
+                User Asset 추가
+              </h3>
+              <button
+                onClick={() => setIsAddAssetOpen(false)}
+                className="p-2 hover:bg-black/5 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-[#1d1d1f]/60" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* 제목 */}
+              <div>
+                <label className="block text-sm font-medium text-[#1d1d1f] mb-2">
+                  제목 *
+                </label>
+                <input
+                  type="text"
+                  value={newAssetTitle}
+                  onChange={(e) => setNewAssetTitle(e.target.value)}
+                  placeholder="예: [진단] 브랜드 성장 궤적 분석"
+                  className="w-full px-4 py-2 border border-black/10 rounded-lg text-sm text-[#1d1d1f] outline-none focus:border-[#1d1d1f]/30 focus:ring-2 focus:ring-[#1d1d1f]/10"
+                />
+              </div>
+
+              {/* 카테고리 */}
+              <div>
+                <label className="block text-sm font-medium text-[#1d1d1f] mb-2">
+                  카테고리
+                </label>
+                <select
+                  value={newAssetCategory}
+                  onChange={(e) => setNewAssetCategory(e.target.value)}
+                  className="w-full px-4 py-2 border border-black/10 rounded-lg text-sm text-[#1d1d1f] outline-none focus:border-[#1d1d1f]/30 focus:ring-2 focus:ring-[#1d1d1f]/10"
+                >
+                  <option value="진단">진단</option>
+                  <option value="설계">설계</option>
+                  <option value="확정">확정</option>
+                  <option value="기타">기타</option>
+                </select>
+              </div>
+
+              {/* 콘텐츠 */}
+              <div>
+                <label className="block text-sm font-medium text-[#1d1d1f] mb-2">
+                  콘텐츠 *
+                </label>
+                <textarea
+                  value={newAssetContent}
+                  onChange={(e) => setNewAssetContent(e.target.value)}
+                  placeholder="마크다운 형식으로 작성할 수 있습니다..."
+                  rows={12}
+                  className="w-full px-4 py-2 border border-black/10 rounded-lg text-sm text-[#1d1d1f] outline-none focus:border-[#1d1d1f]/30 focus:ring-2 focus:ring-[#1d1d1f]/10 font-mono"
+                />
+              </div>
+
+              {/* 태그 (선택사항) */}
+              <div>
+                <label className="block text-sm font-medium text-[#1d1d1f] mb-2">
+                  태그 (쉼표로 구분)
+                </label>
+                <input
+                  type="text"
+                  value={newAssetTags.join(', ')}
+                  onChange={(e) => {
+                    const tags = e.target.value.split(',').map(t => t.trim()).filter(t => t.length > 0);
+                    setNewAssetTags(tags);
+                  }}
+                  placeholder="예: 진단, 전환율, 매출누수"
+                  className="w-full px-4 py-2 border border-black/10 rounded-lg text-sm text-[#1d1d1f] outline-none focus:border-[#1d1d1f]/30 focus:ring-2 focus:ring-[#1d1d1f]/10"
+                />
+              </div>
+            </div>
+
+            {/* 버튼 */}
+            <div className="flex items-center justify-end gap-3 mt-6 pt-6 border-t border-black/8">
+              <button
+                onClick={() => {
+                  setIsAddAssetOpen(false);
+                  setNewAssetTitle('');
+                  setNewAssetCategory('진단');
+                  setNewAssetContent('');
+                  setNewAssetTags([]);
+                }}
+                className="px-4 py-2 text-sm font-medium text-[#1d1d1f]/60 hover:text-[#1d1d1f] transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={addUserAsset}
+                className="px-4 py-2 bg-[#1d1d1f] text-white rounded-lg text-sm font-medium hover:bg-[#1d1d1f]/90 transition-colors"
+              >
+                저장
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ===== 메인 워크스페이스 ===== */}
       <main className="flex-1 flex overflow-hidden">
         {/* 통합 워크플로우 영역 */}
-        <div className="flex-1 overflow-y-auto px-6 lg:px-8 py-4">
-          <div className="w-full max-w-[1400px] xl:max-w-[1600px] 2xl:max-w-[1800px] mx-auto space-y-4">
+        <div className="flex-1 overflow-hidden px-6 lg:px-8 py-4">
+          <div className="w-full max-w-[1400px] xl:max-w-[1600px] 2xl:max-w-[1800px] mx-auto space-y-6">
 
             {/* ===== 상단: Step 내비게이션 (미니멀) ===== */}
             <div className="flex items-center justify-between">
-              <StepNavigation
-                currentStep={activeStep}
-                onStepChange={setActiveStep}
-                stepsWithData={stepsWithData}
-              />
+              <div className="flex items-center gap-3">
+                <StepNavigation
+                  currentStep={activeStep}
+                  onStepChange={setActiveStep}
+                  stepsWithData={stepsWithData}
+                />
+                {/* Library 버튼 */}
+                <nav className="inline-flex p-1 bg-white rounded-xl border border-zinc-200 shadow-sm">
+                  <button
+                    onClick={() => setIsLibraryOpen(!isLibraryOpen)}
+                    className={`relative px-5 py-1.5 rounded-lg text-sm font-medium tracking-tight transition-all duration-200 flex items-center gap-2 ${
+                      isLibraryOpen
+                        ? 'bg-zinc-100 text-zinc-900 border border-zinc-300 shadow-sm'
+                        : 'text-zinc-600 hover:text-zinc-700 hover:bg-zinc-50'
+                    }`}
+                  >
+                    <BookOpen className="w-4 h-4" />
+                    <span>Library</span>
+                  </button>
+                </nav>
+              </div>
               {/* 우측 여백 또는 추가 액션 공간 */}
               <div className="text-xs text-zinc-500 font-medium">
                 {stepsWithData.length}/3 생성됨
@@ -1055,11 +1948,15 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
               />
 
               {/* 본문 에디터 영역 - 단일 SplitViewLayout으로 통합 */}
-              <div className="flex-1 min-h-[700px] h-[calc(100vh-350px)] border border-zinc-200 rounded-2xl overflow-hidden shadow-sm bg-white mb-8">
+              <div 
+                className="flex-1 min-h-[700px] h-[calc(100vh-350px)] border border-zinc-200 rounded-2xl overflow-hidden shadow-sm bg-white mb-8"
+                onDragOver={handleEditorDragOver}
+                onDrop={handleEditorDrop}
+              >
                 <SplitViewLayout
                   // 동적 타이틀 및 아이콘 (SegmentedControl에 통합됨)
-                  emailIcon={<Mail className="w-3.5 h-3.5 text-white/70" />}
-                  reportIcon={<FileText className="w-3.5 h-3.5 text-white/70" />}
+                  emailIcon={<Mail className="w-3.5 h-3.5" />}
+                  reportIcon={<FileText className="w-3.5 h-3.5" />}
 
                   // 뷰 모드
                   viewMode={activeTab === 'email' ? emailViewMode : (reportViewMode === 'split' ? 'split' : 'preview')}
@@ -1080,40 +1977,52 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
                   previewScrollRef={activeTab === 'email' ? emailPreviewRef : previewRef}
                   onPreviewScroll={activeTab === 'email' ? handleEmailPreviewScroll : handlePreviewScroll}
 
-                  // 툴바 버튼 (모드에 따라 다름)
-                      toolbarButtons={
+                  // 툴바 버튼 (왼쪽 그룹 - SegmentedControl 오른쪽)
+                  leftButtons={
                     activeTab === 'email' ? (
-                      <>
-                          {/* 복사 버튼 */}
-                        <ToolbarButton
-                            onClick={handleCopyEmail}
-                          icon={isCopied ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                          label={isCopied ? '복사됨!' : '복사'}
-                          isActive={isCopied}
-                        />
-                        {/* 실제화면 버튼 */}
-                        <ToolbarButton
-                          onClick={() => setIsEmailPreviewOpen(true)}
-                          icon={<Maximize2 className="w-3.5 h-3.5" />}
-                          label="실제화면"
-                        />
-                              </>
-                            ) : (
-                              <>
-                        {/* 볼드 최적화 토글 */}
-                        <ToolbarButton
-                          onClick={() => setIsMarkdownCleaned(!isMarkdownCleaned)}
-                          icon={isMarkdownCleaned ? <Type className="w-3.5 h-3.5" /> : <Wand2 className="w-3.5 h-3.5" />}
-                          label={isMarkdownCleaned ? '원본' : '최적화'}
-                          isActive={isMarkdownCleaned}
-                        />
-                        {/* 실제화면 버튼 */}
-                        <ToolbarButton
-                          onClick={() => setIsReportModalOpen(true)}
-                          icon={<Maximize2 className="w-3.5 h-3.5" />}
-                          label="실제화면"
-                        />
-                      </>
+                      <ToolbarButton
+                        onClick={() => setIsEmailPreviewOpen(true)}
+                        icon={<Maximize2 className="w-3.5 h-3.5" />}
+                        label="실제화면"
+                      />
+                    ) : (
+                      <ToolbarButton
+                        onClick={() => setIsReportModalOpen(true)}
+                        icon={<Maximize2 className="w-3.5 h-3.5" />}
+                        label="실제화면"
+                      />
+                    )
+                  }
+
+                  // 툴바 버튼 (오른쪽 그룹 - 최우측)
+                  toolbarButtons={
+                    activeTab === 'email' ? (
+                      <ToolbarButton
+                        onClick={handleCopyEmail}
+                        icon={isCopied ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                        label={isCopied ? '복사됨!' : '복사'}
+                        isActive={isCopied}
+                      />
+                    ) : (
+                      <ToolbarButton
+                        onClick={() => {
+                          if (!isMarkdownCleaned) {
+                            // 현재 reportMarkdown 값을 sanitize
+                            const currentContent = reportMarkdown || currentStepData?.report_markdown || '';
+                            const sanitizedContent = sanitizeMarkdown(currentContent);
+                            
+                            // sanitize된 내용을 상태와 ref에 저장
+                            setReportMarkdown(sanitizedContent);
+                            reportMarkdownRef.current = sanitizedContent;
+                            
+                            // 최적화 상태 활성화
+                            setIsMarkdownCleaned(true);
+                          }
+                        }}
+                        icon={<Wand2 className="w-3.5 h-3.5" />}
+                        label="최적화"
+                        isActive={isMarkdownCleaned}
+                      />
                     )
                   }
 
@@ -1217,6 +2126,7 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
                     ) : (
                       <div className="p-6 lg:p-8 relative" style={{ paddingBottom: '100px' }}>
                         <ReactMarkdown
+                          key={`preview-${reportMarkdownRef.current?.substring(0, 100) || reportMarkdown?.substring(0, 100) || 'default'}`} // 콘텐츠 변경 시 강제 리렌더링
                           remarkPlugins={[remarkGfm]}
                           rehypePlugins={[rehypeRaw]}
                           components={{
@@ -1253,6 +2163,22 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
                             p: ({ children }) => <p className="my-4 leading-relaxed text-zinc-700">{children}</p>,
                             a: ({ href, children }) => (
                               <a href={href} className="text-zinc-600 hover:text-zinc-900 underline underline-offset-2" target="_blank" rel="noopener noreferrer">{children}</a>
+                            ),
+                            img: ({ src, alt }) => (
+                              <img 
+                                src={src || ''} 
+                                alt={alt || ''} 
+                                className="max-w-full h-auto rounded-lg my-4 shadow-sm border border-zinc-200"
+                                loading="lazy"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.style.display = 'none';
+                                  const errorDiv = document.createElement('div');
+                                  errorDiv.className = 'p-4 bg-zinc-100 rounded-lg text-sm text-zinc-500 my-4';
+                                  errorDiv.textContent = '이미지를 불러올 수 없습니다';
+                                  target.parentNode?.insertBefore(errorDiv, target.nextSibling);
+                                }}
+                              />
                             ),
                             code: ({ children, className }) => {
                               const isInline = !className;
@@ -1487,6 +2413,7 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
                     <>
                       <article className="luxury-report-prose max-w-none">
                         <ReactMarkdown
+                          key={`modal-${reportMarkdownRef.current?.substring(0, 100) || reportMarkdown?.substring(0, 100) || 'default'}`} // 콘텐츠 변경 시 강제 리렌더링
                           remarkPlugins={[remarkGfm]}
                           rehypePlugins={[rehypeRaw]}
                           components={{
@@ -1592,6 +2519,22 @@ export default function InsightMixerClient({ prospectId }: InsightMixerClientPro
                                 </a>
                               );
                             },
+                            img: ({ src, alt }) => (
+                              <img 
+                                src={src || ''} 
+                                alt={alt || ''} 
+                                className="max-w-full h-auto rounded-xl my-6 shadow-md"
+                                loading="lazy"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.style.display = 'none';
+                                  const errorDiv = document.createElement('div');
+                                  errorDiv.className = 'p-4 bg-zinc-100 rounded-xl text-sm text-zinc-500 my-6';
+                                  errorDiv.textContent = '이미지를 불러올 수 없습니다';
+                                  target.parentNode?.insertBefore(errorDiv, target.nextSibling);
+                                }}
+                              />
+                            ),
                             code: ({ children, className }) => {
                               const isInline = !className;
                               return isInline ? (
